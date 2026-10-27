@@ -7,8 +7,8 @@
     },
     {
         "tipo": "rede",
-        "nome": "Falha de Configuração do Roteador",
-        "nivel_risco": "Média",
+        "nome": "Falha de ConfiguraÃ§Ã£o do Roteador",
+        "nivel_risco": "MÃ©dia",
         "porta_afetada": 23
     },
     {
