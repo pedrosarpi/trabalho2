@@ -1,20 +1,22 @@
-[
-    {
-        "tipo": "software",
-        "nome": "Falha SQL Injection",
-        "nivel_risco": "Alta",
-        "versao_falha": "1.0.0"
+{
+    "ativos": {
+        "000002": {
+            "nome": "Notebook",
+            "responsavel": "Pedro Sarpi",
+            "setor_localizacao": "1E30",
+            "tipo": "EQUIPAMENTO",
+            "status": "ATIVO",
+            "descricao": "Notebook para estudos"
+        }
     },
-    {
-        "tipo": "rede",
-        "nome": "Falha de Configuração do Roteador",
-        "nivel_risco": "Média",
-        "porta_afetada": 23
-    },
-    {
-        "tipo": "software",
-        "nome": "Falha XSS",
-        "nivel_risco": "Alta",
-        "versao_falha": "2.1.3"
+    "vulnerabilidades": {
+        "000002": [
+            {
+                "descricao": "Máquina rodando em Windows 10 (Não recebe mais atualizações de segurança)",
+                "categoria": "Software desatualizado/obsoleto",
+                "severidade": "ALTA",
+                "status": "ABERTA"
+            }
+        ]
     }
-]
+}
