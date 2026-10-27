@@ -1,0 +1,22 @@
+{
+    "ativos": {
+        "000001": {
+            "nome": "Notebook",
+            "responsavel": "Pedro Sarpi",
+            "setor_localizacao": "1E30",
+            "tipo": "EQUIPAMENTO",
+            "status": "ATIVO",
+            "descricao": "Notebook para estudos"
+        }
+    },
+    "vulnerabilidades": {
+        "000001": [
+            {
+                "descricao": "Windows 11 desatualizado",
+                "categoria": "Software obsoleto",
+                "severidade": "MEDIA",
+                "status": "ABERTA"
+            }
+        ]
+    }
+}
