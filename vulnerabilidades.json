@@ -1,22 +1,12 @@
-{
-    "ativos": {
-        "000002": {
-            "nome": "Notebook",
-            "responsavel": "Pedro Sarpi",
-            "setor_localizacao": "1E30",
-            "tipo": "EQUIPAMENTO",
-            "status": "ATIVO",
-            "descricao": "Notebook para estudos"
-        }
-    },
-    "vulnerabilidades": {
-        "000002": [
-            {
-                "descricao": "Máquina rodando em Windows 10 (Não recebe mais atualizações de segurança)",
-                "categoria": "Software desatualizado/obsoleto",
-                "severidade": "ALTA",
-                "status": "ABERTA"
-            }
-        ]
+[
+    {
+        "id_ativo": "000001",
+        "nome": "Roteador",
+        "responsavel": "Pedro Sarpi",
+        "setor_localizacao": "1E30",
+        "tipo": "DISPOSITIVO_DE_REDE",
+        "status": "ATIVO",
+        "descricao": "Roteador Wi-Fi com 4 portas Ethernet",
+        "vulnerabilidades": []
     }
-}
+]
