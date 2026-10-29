@@ -1,33 +1,45 @@
-from dados import carregar_dados
-from utilidades import cabecalho, ler_inteiro, mensagem_sucesso, mensagem_aviso, AZUL, RESET
-from ativos import cadastrar_ativo, listar_ativos, pesquisar_ativo, atualizar_ativo, remover_ativo
-from vulnerabilidades import gerenciar_vulnerabilidades
+"""Ponto de entrada: monta as peças (armazenamento, inventário, menu) e inicia."""
+import os
 
-def main():
-    dados = carregar_dados()
-    while True:
-        cabecalho(f'{AZUL}Sistema de Gerenciamento de Ativos e Vulnerabilidades{RESET}')
-        print('1 - Cadastrar ativo\n2 - Listar ativos\n3 - Pesquisar ativo por ID ou nome\n'
-              '4 - Atualizar ativo\n5 - Remover ativo\n6 - Gerenciar vulnerabilidades\n7 - Sair')
-        opcao = ler_inteiro('\nDigite uma opção: ')
-        
-        if opcao == 1:
-            cadastrar_ativo(dados)
-        elif opcao == 2:
-            listar_ativos(dados)
-        elif opcao == 3:
-            pesquisar_ativo(dados)
-        elif opcao == 4:
-            atualizar_ativo(dados)
-        elif opcao == 5:
-            remover_ativo(dados)
-        elif opcao == 6:
-            gerenciar_vulnerabilidades(dados)
-        elif opcao == 7:
-            mensagem_sucesso('Espero te ver novamente!')
-            return
+from dados import ArmazenamentoJSON, ErroArmazenamento
+from inventario import Inventario
+from menus import MenuPrincipal
+from utilidades import mensagem_aviso, mensagem_erro
+
+NOME_ARQUIVO = 'vulnerabilidades.json'
+
+
+def caminho_do_arquivo() -> str:
+    """O arquivo fica ao lado do código (e não na pasta de onde o programa foi chamado).
+
+    A variável de ambiente INVENTARIO_ARQUIVO permite trocar o local, por exemplo
+    para apontar para um volume quando o programa rodar em um container.
+    """
+    padrao = os.path.join(os.path.dirname(os.path.abspath(__file__)), NOME_ARQUIVO)
+    return os.environ.get('INVENTARIO_ARQUIVO') or padrao
+
+
+def main() -> None:
+    armazenamento = ArmazenamentoJSON(caminho_do_arquivo())
+    inventario = Inventario(armazenamento)
+    try:
+        inventario.carregar()
+    except ErroArmazenamento as erro:
+        mensagem_erro(str(erro))
+        copia = armazenamento.guardar_copia()
+        if copia:
+            mensagem_aviso(f'Uma cópia do arquivo original foi guardada em:\n{copia}\n'
+                           'O programa vai iniciar com a base vazia.')
         else:
-            mensagem_aviso('Digite uma opção válida!')
+            mensagem_aviso('O programa vai iniciar com a base vazia.')
+
+    try:
+        MenuPrincipal(inventario).executar()
+    except (KeyboardInterrupt, EOFError):
+        # Ctrl+C / Ctrl+D: os dados já foram gravados a cada operação.
+        print()
+        mensagem_aviso('Programa encerrado.')
+
 
 if __name__ == '__main__':
     main()
