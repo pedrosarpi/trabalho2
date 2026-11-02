@@ -172,11 +172,13 @@ class TestMenus(unittest.TestCase):
         self.addCleanup(self.pasta.cleanup)
         self.caminho = os.path.join(self.pasta.name, 'dados.json')
         self.inventario = Inventario(ArmazenamentoJSON(self.caminho))
+        # INJEÇÃO: Passa um usuário logado fake para os testes
+        self.usuario_fake = 'teste_user'
 
     def executar(self, menu_classe, digitado):
         saida = io.StringIO()
         with patch('builtins.input', side_effect=digitado), contextlib.redirect_stdout(saida):
-            menu_classe(self.inventario).executar()
+            menu_classe(self.inventario, self.usuario_fake).executar()
         return saida.getvalue()
 
     def arquivo(self):
@@ -191,7 +193,7 @@ class TestMenus(unittest.TestCase):
                     '9', 'x', '5',                               # tipo inválido, depois BANCO_DE_DADOS
                     '1', 'Servidor de banco',                    # status ATIVO, descrição
                     's', 'Senha fraca', 'Autenticação', '4', '1',  # vulnerabilidade inicial
-                    'n', '8']
+                    'n', '9']
         saida = self.executar(MenuPrincipal, digitado)
         ativo = self.inventario.obter(5)
         self.assertIsInstance(ativo, BancoDeDados)
@@ -204,9 +206,9 @@ class TestMenus(unittest.TestCase):
 
     def test_cadastro_recusa_id_e_nome_duplicados(self):
         self.inventario.adicionar(novo_equipamento(1, 'Roteador'))
-        saida = self.executar(MenuPrincipal, ['1', '1', '8'])
+        saida = self.executar(MenuPrincipal, ['1', '1', '9'])
         self.assertIn('Já existe um ativo com esse identificador.', saida)
-        saida = self.executar(MenuPrincipal, ['1', '2', 'ROTEADOR', '8'])
+        saida = self.executar(MenuPrincipal, ['1', '2', 'ROTEADOR', '9'])
         self.assertIn('Já existe um ativo com esse nome ou hostname.', saida)
         self.assertEqual(len(self.inventario), 1)
 
@@ -218,7 +220,7 @@ class TestMenus(unittest.TestCase):
                     'Bruno', '', '',          # responsável; setor e descrição inalterados
                     's', '2',                 # alterar tipo -> SISTEMA
                     'n',                      # status inalterado
-                    '8']
+                    '9']
         saida = self.executar(MenuPrincipal, digitado)
         self.assertIn('Já existe outro ativo com esse nome ou hostname.', saida)
         ativo = self.inventario.obter(2)
@@ -231,18 +233,18 @@ class TestMenus(unittest.TestCase):
         ativo.adicionar_vulnerabilidade(nova_vulnerabilidade())
         self.inventario.adicionar(ativo)
         self.inventario.salvar()
-        self.executar(MenuPrincipal, ['5', '1', 'n', '5', '1', 's', '8'])
+        self.executar(MenuPrincipal, ['5', '1', 'n', '5', '1', 's', '9'])
         self.assertEqual(len(self.inventario), 0)
         self.assertEqual(self.arquivo(), [])
 
     def test_busca_por_id_e_por_nome_no_menu(self):
         self.inventario.adicionar(novo_equipamento(1, 'Roteador'))
-        self.assertIn('Responsável: Ana', self.executar(MenuPrincipal, ['3', '000001', '8']))
-        self.assertIn('Responsável: Ana', self.executar(MenuPrincipal, ['3', 'rote', '8']))
-        self.assertIn('Ativo não encontrado.', self.executar(MenuPrincipal, ['3', 'zzz', '8']))
+        self.assertIn('Responsável: Ana', self.executar(MenuPrincipal, ['3', '000001', '9']))
+        self.assertIn('Responsável: Ana', self.executar(MenuPrincipal, ['3', 'rote', '9']))
+        self.assertIn('Ativo não encontrado.', self.executar(MenuPrincipal, ['3', 'zzz', '9']))
 
     def test_menu_principal_rejeita_opcoes_invalidas(self):
-        saida = self.executar(MenuPrincipal, ['abc', '', '1.5', '-1', '99', '8'])
+        saida = self.executar(MenuPrincipal, ['abc', '', '1.5', '-1', '99', '9'])
         self.assertEqual(saida.count('Digite um número inteiro válido.'), 3)
         self.assertEqual(saida.count('Digite uma opção válida!'), 2)
 
@@ -270,6 +272,7 @@ class TestMain(unittest.TestCase):
                 arquivo.write('{ quebrado')
             saida = io.StringIO()
             with patch.dict(os.environ, {'INVENTARIO_ARQUIVO': caminho}), \
+                    patch('menus.exibir_tela_login', return_value='teste_user'), \
                     patch('builtins.input', side_effect=KeyboardInterrupt), \
                     contextlib.redirect_stdout(saida):
                 aplicacao.main()

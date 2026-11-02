@@ -155,7 +155,7 @@ def test_singular_detectada_antes_do_solve(tmp_path):
     resolver.assert_not_called()
     assert r.x is None and r.posto == 2 and 'não é invertível' in r.impedimento
     np.testing.assert_allclose(r.modelo.b, [8, 8, 8])
-    saida = executar(MenuRiscos(inv), ['4', '6'])
+    saida = executar(MenuRiscos(inv, 'teste'), ['4', '6'])
     assert 'indisponível' in saida and 'não é invertível' in saida
 
 
@@ -293,30 +293,31 @@ def test_troca_de_tipo_e_remocao_preservam_integridade(tmp_path):
 
 def test_menus_ciclo_completo_com_persistencia(tmp_path):
     inv = inventario(tmp_path, [ativo(1), ativo(2, S.ALTA)])
-    saida = executar(MenuRiscos(inv), ['1', '1', '2', 'nan', '1', '0,5', '2', '4', '5', '6'])
+    saida = executar(MenuRiscos(inv, 'teste'), ['1', '1', '2', 'nan', '1', '0,5', '2', '4', '5', '6'])
     assert 'finito' in saida and '4.0000' in saida and '8.0000' in saida
     assert 'I - A' in saida and 'M (2 x 1)' in saida and '000002/V1' in saida
     inv.carregar()
     assert inv.obter(1).dependencias == (Dependencia(2, .5),)
-    executar(MenuRiscos(inv), ['3', '1', '1', 'n', '6'])
+    executar(MenuRiscos(inv, 'teste'), ['3', '1', '1', 'n', '6'])
     assert len(inv.obter(1).dependencias) == 1
-    executar(MenuRiscos(inv), ['3', '1', '1', 's', '6'])
+    executar(MenuRiscos(inv, 'teste'), ['3', '1', '1', 's', '6'])
     inv.carregar()
     assert inv.obter(1).dependencias == ()
 
 
 def test_menu_principal_abre_riscos_e_preserva_saidas(tmp_path):
     inv = inventario(tmp_path)
-    saida = executar(MenuPrincipal(inv), ['7', '4', '6', '6', '8', '8'])
+    # Ajustado para fornecer o número exato de entradas exigidas pelo menu atualizado
+    saida = executar(MenuPrincipal(inv, 'teste'), ['7', '4', '6', '6', '8', '9'])
     assert 'Nenhum ativo cadastrado para analisar' in saida
-    assert MenuPrincipal(inv).opcoes()[8][1] is None
-    assert list(MenuPrincipal(inv).opcoes())[-1] == 8
-    assert saida.index('7 - Análise de risco e dependências') < saida.index('8 - Sair')
-    assert MenuVulnerabilidades(inv).opcoes()[8][1] is None
+    assert MenuPrincipal(inv, 'teste').opcoes()[9][1] is None
+    assert list(MenuPrincipal(inv, 'teste').opcoes())[-1] == 9
+    assert saida.index('7 - Análise de risco e dependências') < saida.index('9 - Sair')
+    assert MenuVulnerabilidades(inv, 'teste').opcoes()[8][1] is None
 
 
 def test_menu_pendencia_e_cancelamento(tmp_path):
     inv = inventario(tmp_path, [ativo(1, S.NAO_AVALIADA), ativo(2)])
-    saida = executar(MenuRiscos(inv), ['4', '1', '1', '1', '1', '1', '2', '', '6'])
+    saida = executar(MenuRiscos(inv, 'teste'), ['4', '1', '1', '1', '1', '1', '2', '', '6'])
     assert 'NÃO AVALIADAS' in saida and 'si mesmo' in saida
     assert inv.obter(1).dependencias == ()
