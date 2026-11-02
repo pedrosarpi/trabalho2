@@ -1,6 +1,6 @@
 [
     {
-        "id_ativo": "000001",
+        "id_ativo": 1,
         "nome": "Roteador",
         "responsavel": "Pedro Sarpi",
         "setor_localizacao": "1E30",

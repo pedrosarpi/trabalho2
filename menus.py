@@ -7,6 +7,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from consulta_cve import ClienteNVD, ErroConsultaCVE
+from interface_cvss import ler_avaliacao, mostrar_avaliacao
+from seguranca import validar_cve
 from dados import ErroArmazenamento
 from equipamentos import ID_MAXIMO, Equipamento
 from modelos import SeveridadeVulnerabilidade, StatusAtivo, StatusTratamento, TipoAtivo, Vulnerabilidade
@@ -226,7 +229,9 @@ class MenuVulnerabilidades(Menu):
             3: ('Visualizar vulnerabilidades de um ativo', self.visualizar_vulnerabilidades),
             4: ('Alterar status', self.alterar_status),
             5: ('Remover vulnerabilidade', self.remover_vulnerabilidade),
-            6: ('Voltar', None),
+            6: ('Consultar CVE na NVD e cadastrar', self.consultar_cve),
+            7: ('Calcular CVSS e aplicar a uma vulnerabilidade', self.calcular_cvss),
+            8: ('Voltar', None),
         }
 
     def cadastrar_vulnerabilidade(self) -> None:
@@ -281,3 +286,81 @@ class MenuVulnerabilidades(Menu):
         ativo.remover_vulnerabilidade(vulnerabilidade)
         if self._salvar():
             mensagem_sucesso('Vulnerabilidade removida com sucesso.')
+
+    def consultar_cve(self) -> None:
+        cve_id = ler_texto('CVE a consultar (Enter cancela): ', obrigatorio=False)
+        if not cve_id:
+            return
+        # Uma instância por submenu preserva o intervalo entre consultas.
+        if not hasattr(self, '_cliente_nvd'):
+            self._cliente_nvd = ClienteNVD()
+        try:
+            print('Consultando a NVD...')
+            resultado = self._cliente_nvd.consultar(cve_id)
+        except (ValueError, ErroConsultaCVE) as erro:
+            mensagem_erro(str(erro))
+            mensagem_aviso('O cadastro manual e o cálculo local continuam disponíveis.')
+            return
+        print(f'\n{resultado.cve_id} — {resultado.status}\n{resultado.descricao}')
+        print(f'Fonte: {resultado.url}\nConsultado em: {resultado.consultado_em}')
+        for indice, avaliacao in enumerate(resultado.avaliacoes, 1):
+            print(f'\nAvaliação {indice}')
+            mostrar_avaliacao(avaliacao)
+        for aviso in resultado.avisos:
+            mensagem_aviso(aviso)
+        print('Confira no registro os produtos, versões e condições afetadas antes de associar ao ativo.')
+        if not confirmar('Cadastrar este CVE em um ativo?'):
+            return
+        ativo = self._selecionar_ativo('Selecione o ativo afetado:')
+        if ativo is None:
+            return
+        if any(v.cve_id == resultado.cve_id for v in ativo.vulnerabilidades):
+            mensagem_aviso('Este CVE já está cadastrado neste ativo.')
+            return
+        avaliacao = None
+        if len(resultado.avaliacoes) == 1:
+            avaliacao = resultado.avaliacoes[0]
+        elif resultado.avaliacoes:
+            indice = ler_inteiro('Escolha a avaliação a registrar: ', minimo=1,
+                                 maximo=len(resultado.avaliacoes))
+            avaliacao = resultado.avaliacoes[indice - 1]
+        categoria = ler_texto('Categoria da vulnerabilidade: ')
+        status = escolher_enum('Status do tratamento:', StatusTratamento)
+        vulnerabilidade = Vulnerabilidade(
+            resultado.descricao, categoria, SeveridadeVulnerabilidade.NAO_AVALIADA, status,
+            cve_id=resultado.cve_id, cvss=avaliacao, consultado_em=resultado.consultado_em)
+        ativo.adicionar_vulnerabilidade(vulnerabilidade)
+        if self._salvar():
+            mensagem_sucesso('CVE cadastrado com sucesso.')
+
+    def calcular_cvss(self) -> None:
+        avaliacao = ler_avaliacao()
+        if avaliacao is None:
+            return
+        mostrar_avaliacao(avaliacao)
+        if not confirmar('Aplicar esta avaliação a uma vulnerabilidade cadastrada?'):
+            return
+        ativo = self._selecionar_ativo('Selecione o ativo:')
+        if ativo is None:
+            return
+        vulnerabilidade = self._selecionar_vulnerabilidade(ativo, 'Número da vulnerabilidade: ')
+        if vulnerabilidade is None:
+            return
+        cve_id = vulnerabilidade.cve_id
+        if cve_id is None:
+            while True:
+                try:
+                    cve_id = validar_cve(ler_texto('CVE associado (opcional; não verificado online): ', obrigatorio=False))
+                    break
+                except ValueError as erro:
+                    mensagem_erro(str(erro))
+            if cve_id and any(v is not vulnerabilidade and v.cve_id == cve_id for v in ativo.vulnerabilidades):
+                mensagem_aviso('Este CVE já está cadastrado neste ativo. Avaliação não aplicada.')
+                return
+        if vulnerabilidade.cvss is not None:
+            if not confirmar('Substituir a avaliação CVSS existente por este cálculo local?'):
+                return
+        vulnerabilidade.cvss = avaliacao
+        vulnerabilidade.cve_id = cve_id
+        if self._salvar():
+            mensagem_sucesso('CVSS aplicado; severidade atualizada automaticamente.')
