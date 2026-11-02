@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from enum import Enum
 
+from seguranca import AvaliacaoCVSS, validar_cve
+
 
 class TipoAtivo(Enum):
     EQUIPAMENTO = 1
@@ -27,6 +29,8 @@ class SeveridadeVulnerabilidade(Enum):
     MEDIA = 2
     ALTA = 3
     CRITICA = 4
+    NENHUMA = 5
+    NAO_AVALIADA = 6
 
 
 class StatusTratamento(Enum):
@@ -65,11 +69,23 @@ class Vulnerabilidade:
     """Uma fragilidade registrada em um equipamento."""
 
     def __init__(self, descricao: str, categoria: str, severidade: SeveridadeVulnerabilidade,
-                 status: StatusTratamento = StatusTratamento.ABERTA):
+                 status: StatusTratamento = StatusTratamento.ABERTA, *,
+                 cve_id=None, cvss=None, consultado_em=None):
         self.descricao = descricao
         self.categoria = categoria
-        self.severidade = severidade
+        self.cve_id = validar_cve(cve_id)
+        self.cvss = AvaliacaoCVSS.from_dict(cvss.to_dict()) if cvss is not None else None
+        if consultado_em is not None and not isinstance(consultado_em, str):
+            raise ValueError("A data da consulta deve ser texto.")
+        self.consultado_em = consultado_em
+        self._severidade = severidade
         self.status = status
+
+    @property
+    def severidade(self):
+        if self.cvss is not None:
+            return SeveridadeVulnerabilidade[self.cvss.severidade]
+        return self._severidade
 
     def alterar_status(self, novo_status: StatusTratamento) -> None:
         self.status = novo_status
@@ -81,6 +97,9 @@ class Vulnerabilidade:
             'categoria': self.categoria,
             'severidade': self.severidade.name,
             'status': self.status.name,
+            'cve_id': self.cve_id,
+            'cvss': self.cvss.to_dict() if self.cvss else None,
+            'consultado_em': self.consultado_em,
         }
 
     @staticmethod
@@ -92,8 +111,15 @@ class Vulnerabilidade:
             categoria=campo_texto(dados, 'categoria'),
             severidade=campo_enum(SeveridadeVulnerabilidade, dados, 'severidade'),
             status=campo_enum(StatusTratamento, dados, 'status'),
+            cve_id=dados.get('cve_id'),
+            cvss=AvaliacaoCVSS.from_dict(dados['cvss']) if dados.get('cvss') is not None else None,
+            consultado_em=dados.get('consultado_em'),
         )
 
     def __str__(self) -> str:
         return (f'Descrição: {self.descricao} | Categoria: {self.categoria} | '
-                f'Severidade: {self.severidade.name} | Status: {self.status.name}')
+                f'Severidade: {self.severidade.name} | Status: {self.status.name}'
+                + (f' | CVE: {self.cve_id}' if self.cve_id else '')
+                + (f' | CVSS Base {self.cvss.versao}: {self.cvss.nota:.1f}'
+                   f' | Vetor: {self.cvss.vetor} | Fonte: {self.cvss.fonte}' if self.cvss else ' | CVSS: não avaliado')
+                + (f' | Consultado em: {self.consultado_em}' if self.consultado_em else ''))
