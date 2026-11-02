@@ -34,7 +34,7 @@ Esses pesos descrevem a tabela do PDF, não constituem previsão da nota final.
   A execução com cobertura levou 13,76 s neste ambiente. `pip check` não encontrou
   dependências quebradas; lint E9/F63/F7/F82 apresentou zero erros.
 - Cobertura de linhas dos módulos selecionados: **88% no agregado**, incluindo
-  scripts. `web.py`: 95%; `autenticacao.py`: 90%; `riscos.py`: 93%; `dados.py`: 98%.
+  scripts. `app/web.py`: 95%; `app/autenticacao.py`: 90%; `app/riscos.py`: 93%; `app/dados.py`: 98%.
   Não é cobertura total do repositório nem garantia de ausência de falhas. Menus
   são exercitados pelos testes originais, mas não incluídos nesse agregado.
 - Navegador Chromium real: login, sete telas em desktop (1440 × 1000), quatro
@@ -136,3 +136,18 @@ O PDF prevê apresentação de cinco minutos e avaliação do domínio do códig
 Prepare-se para explicar composição/herança, a persistência em array JSON,
 a direção de A, a diferença entre b e x, a verificação de invertibilidade,
 a migração de senhas e o papel do container/volume.
+
+
+## Verificação após reorganização em pacotes
+
+A reorganização moveu módulos para `app/`, testes para `tests/`, recursos visuais
+para `app/templates/` e `app/static/` e a explicação matemática para `docs/`.
+Os dados locais ficam em `dados/`; o volume Docker mantém `/dados`.
+A suíte foi executada novamente: **214 testes e 10 subtestes aprovados**
+(Python 3.12, 26,20 s), incluindo três testes dos novos caminhos e recursos.
+O lint crítico apresentou zero erros. A medição de cobertura apresentada acima
+pertence à revisão anterior, não foi recalculada nesta reorganização.
+
+Após a reorganização, também passaram os testes de navegador desktop/mobile,
+CRUD e CVSS, HTTP real com Gunicorn, persistência após reinício e monitor curto.
+Docker e execução real de 24 horas continuam pendentes no servidor.

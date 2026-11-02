@@ -2,7 +2,7 @@
   "data": "2026-11-02",
   "python": "3.12.14",
   "pytest": {
-    "testes_aprovados": 211,
+    "testes_aprovados": 214,
     "subtestes_aprovados": 10,
     "falhas": 0
   },
@@ -18,5 +18,6 @@
   "docker_executado_localmente": false,
   "servidor_acessado": false,
   "teste_real_24h_concluido": false,
-  "NVD_automatica": "simulada nos testes; conexao real pendente no servidor"
+  "NVD_automatica": "simulada nos testes; conexao real pendente no servidor",
+  "reorganizacao": "app/, tests/, docs/ e dados/; imports e entrada Gunicorn ajustados"
 }

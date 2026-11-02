@@ -10,13 +10,11 @@ RUN python -m pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home --uid 10001 app \
     && mkdir -p /dados \
     && chown app:app /dados /app
-COPY --chown=app:app *.py ./
-COPY --chown=app:app templates/ ./templates/
-COPY --chown=app:app static/ ./static/
+COPY --chown=app:app app/ ./app/
 COPY --chown=app:app exemplos/ ./exemplos/
 COPY --chown=app:app scripts/ ./scripts/
 USER app
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=8)"
-CMD ["gunicorn", "--bind=0.0.0.0:8000", "--workers=1", "--threads=4", "--timeout=60", "--access-logfile=-", "--error-logfile=-", "web:criar_app()"]
+CMD ["gunicorn", "--bind=0.0.0.0:8000", "--workers=1", "--threads=4", "--timeout=60", "--access-logfile=-", "--error-logfile=-", "app.web:criar_app()"]

@@ -53,14 +53,14 @@ Git adequado; não coloque tokens em comandos compartilhados ou no README.
 Opção B: transfira o ZIP desta entrega do seu computador:
 
 ```bash
-scp trabalho2-web-revisado.zip SUA_MATRICULA@10.0.99.150:~/
+scp trabalho2-web-organizado.zip SUA_MATRICULA@10.0.99.150:~/
 ```
 
 Então, no servidor:
 
 ```bash
 mkdir -p ~/entrega-web
-python3 -m zipfile -e ~/trabalho2-web-revisado.zip ~/entrega-web
+python3 -m zipfile -e ~/trabalho2-web-organizado.zip ~/entrega-web
 cd ~/entrega-web/trabalho2-web
 ```
 
@@ -233,8 +233,8 @@ privada. Para importar seus `usuarios.json` e `vulnerabilidades.json` locais em
 uma base nova (ou substituir intencionalmente a base após o backup):
 
 ```bash
-docker compose cp usuarios.json inventario:/dados/usuarios.json
-docker compose cp vulnerabilidades.json inventario:/dados/vulnerabilidades.json
+docker compose cp dados/usuarios.json inventario:/dados/usuarios.json
+docker compose cp dados/vulnerabilidades.json inventario:/dados/vulnerabilidades.json
 docker compose run --rm --no-deps --user 0 inventario chown -R 10001:10001 /dados
 docker compose up -d --wait --wait-timeout 180
 ```
@@ -305,3 +305,13 @@ git push -u origin interface-web
 Inspecione as alterações antes do commit. Se credenciais já foram publicadas,
 tire os arquivos das próximas versões e troque as senhas/chaves expostas. Não é
 necessário fazer merge para testar o CI da branch.
+
+
+### Atualizar um clone que ainda usa a estrutura antiga
+
+A estrutura desta entrega está descrita no README. Ao copiar os arquivos para
+seu clone Git, retire os antigos módulos Python e `test_*.py` da raiz, além das
+pastas `templates/` e `static/` antigas, depois de conferir suas versões novas
+em `app/` e `tests/`. Preserve `.git`, seu `.env` e seus dados atuais.
+Não deixe cópias antigas do código junto das novas. Confira os movimentos/
+exclusões em `git status` e execute os testes antes de criar o commit.
