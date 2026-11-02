@@ -1,4 +1,4 @@
-# Atlas — Gestão de ativos, vulnerabilidades e risco
+# OrthoCRUD — Gestão de ativos, vulnerabilidades e risco
 
 Aplicação em Python para cadastrar ativos, acompanhar vulnerabilidades e analisar
 como o risco se propaga entre equipamentos dependentes. Oferece interface web
@@ -147,13 +147,13 @@ configuração, basta ter Python instalado; ele não exige as dependências do p
 Na pasta do projeto, gere a configuração uma única vez:
 
 ```bash
-python3 scripts/configurar.py --projeto atlas-local --porta 18080
+python3 scripts/configurar.py --projeto orthocrud-local --porta 18080
 ```
 
 No PowerShell, use:
 
 ```powershell
-py -3 scripts/configurar.py --projeto atlas-local --porta 18080
+py -3 scripts/configurar.py --projeto orthocrud-local --porta 18080
 ```
 
 O script cria `.env` com chave aleatória e não sobrescreve um arquivo existente.

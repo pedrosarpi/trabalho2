@@ -81,7 +81,7 @@ senhas. Os cenários de risco usam os exemplos e bases temporárias, não dados 
 
 ## Interface entregue
 
-A aplicação recebeu o nome visual **Atlas**, com navegação lateral, cards,
+A aplicação recebeu o nome visual **OrthoCRUD**, com navegação lateral, cards,
 tabelas, formulários e mensagens em português. Nenhuma funcionalidade de negócio
 existente foi retirada. A interface de terminal continua disponível; o servidor
 passa a iniciar a web por padrão.

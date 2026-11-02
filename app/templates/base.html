@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}Atlas · Inventário de risco{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}"><script defer src="{{ url_for('static', filename='app.js') }}"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}OrthoCRUD · Inventário de risco{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}"><script defer src="{{ url_for('static', filename='app.js') }}"></script></head>
 <body>
 {% macro icone(nome) -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="{{ url_for('static', filename='icones.svg') }}#{{ nome }}"></use></svg>{%- endmacro %}
 {% macro campo_oculto(revisao=None) -%}<input type="hidden" name="csrf" value="{{ csrf() }}">{% if revisao %}<input type="hidden" name="revisao" value="{{ revisao }}">{% endif %}{%- endmacro %}
 {% macro selecao(nome, opcoes, atual=None) -%}<select name="{{ nome }}" id="{{ nome }}" required>{% for item in opcoes %}<option value="{{ item.name }}" {% if atual == item %}selected{% endif %}>{{ item|rotulo }}</option>{% endfor %}</select>{%- endmacro %}
 {% if usuario %}
 <a href="#conteudo" class="skip">Ir para o conteúdo</a>
-<aside class="sidebar"><a href="{{ url_for('painel') }}" class="marca"><span class="marca-icon">{{ icone('camadas') }}</span><span>atlas<small>INVENTÁRIO DE RISCO</small></span></a><div class="nav-label">ESPAÇO DE TRABALHO</div>
+<aside class="sidebar"><a href="{{ url_for('painel') }}" class="marca"><span class="marca-icon">{{ icone('camadas') }}</span><span>OrthoCRUD<small>INVENTÁRIO DE RISCO</small></span></a><div class="nav-label">ESPAÇO DE TRABALHO</div>
 <nav aria-label="Navegação principal">
 {% for endpoint, label, icon, endpoints in [('painel','Visão geral','painel',['painel']), ('ativos','Ativos','servidor',['ativos','ativo_detalhe','ativo_form']), ('vulnerabilidades','Vulnerabilidades','escudo',['vulnerabilidades','vuln_form']), ('riscos','Análise de risco','grafico',['riscos']), ('dependencias','Dependências','rede',['dependencias']), ('cve','Consultar CVE','busca',['cve']), ('cvss','Calcular CVSS','calculadora',['cvss']), ('contas','Usuários','usuarios',['contas'])] %}<a href="{{ url_for(endpoint) }}" class="nav-item {% if request.endpoint in endpoints %}selecionado{% endif %}" {% if request.endpoint in endpoints %}aria-current="page"{% endif %}>{{ icone(icon) }}{{ label }}</a>{% endfor %}
 </nav><div class="sidebar-bottom"><a class="nav-item" href="{{ url_for('exportar') }}">{{ icone('download') }}Exportar inventário</a><div class="perfil"><span class="avatar">{{ usuario.login[:1]|upper }}</span><div><strong>{{ usuario.login }}</strong><small>Conta conectada</small></div><form method="post" action="{{ url_for('sair') }}">{{ campo_oculto() }}<button class="icon-button" title="Sair" aria-label="Sair">{{ icone('sair') }}</button></form></div></div></aside>
@@ -15,5 +15,5 @@
 {% else %}<main id="conteudo" class="sem-menu">{% endif %}
 {% for tipo, mensagem in get_flashed_messages(with_categories=true) %}<div role="status" class="alert {{ tipo }}">{{ mensagem }}</div>{% endfor %}
 {% block content %}{% endblock %}
-</main>{% if usuario %}<footer>Atlas · Gestão de ativos, vulnerabilidades e dependências <span>Modelo linear de risco</span></footer></div>{% endif %}
+</main>{% if usuario %}<footer>OrthoCRUD · Gestão de ativos, vulnerabilidades e dependências <span>Modelo linear de risco</span></footer></div>{% endif %}
 </body></html>
