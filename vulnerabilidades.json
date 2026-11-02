@@ -1,12 +1,1 @@
-[
-    {
-        "id_ativo": 1,
-        "nome": "Roteador",
-        "responsavel": "Pedro Sarpi",
-        "setor_localizacao": "1E30",
-        "tipo": "DISPOSITIVO_DE_REDE",
-        "status": "ATIVO",
-        "descricao": "Roteador Wi-Fi com 4 portas Ethernet",
-        "vulnerabilidades": []
-    }
-]
+[]

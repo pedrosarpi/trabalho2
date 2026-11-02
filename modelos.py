@@ -70,7 +70,8 @@ class Vulnerabilidade:
 
     def __init__(self, descricao: str, categoria: str, severidade: SeveridadeVulnerabilidade,
                  status: StatusTratamento = StatusTratamento.ABERTA, *,
-                 cve_id=None, cvss=None, consultado_em=None):
+                 cve_id=None, cvss=None, consultado_em=None, 
+                 adicionado_por: str = '', ultima_modificacao_por: str = ''):
         self.descricao = descricao
         self.categoria = categoria
         self.cve_id = validar_cve(cve_id)
@@ -80,6 +81,8 @@ class Vulnerabilidade:
         self.consultado_em = consultado_em
         self._severidade = severidade
         self.status = status
+        self.adicionado_por = adicionado_por
+        self.ultima_modificacao_por = ultima_modificacao_por or adicionado_por
 
     @property
     def severidade(self):
@@ -87,11 +90,12 @@ class Vulnerabilidade:
             return SeveridadeVulnerabilidade[self.cvss.severidade]
         return self._severidade
 
-    def alterar_status(self, novo_status: StatusTratamento) -> None:
+    def alterar_status(self, novo_status: StatusTratamento, modificado_por: str = '') -> None:
         self.status = novo_status
+        if modificado_por:
+            self.ultima_modificacao_por = modificado_por
 
     def to_dict(self) -> dict:
-        # No JSON, os enums são gravados pelo nome (legível), não pelo número.
         return {
             'descricao': self.descricao,
             'categoria': self.categoria,
@@ -100,6 +104,8 @@ class Vulnerabilidade:
             'cve_id': self.cve_id,
             'cvss': self.cvss.to_dict() if self.cvss else None,
             'consultado_em': self.consultado_em,
+            'adicionado_por': self.adicionado_por,
+            'ultima_modificacao_por': self.ultima_modificacao_por,
         }
 
     @staticmethod
@@ -114,12 +120,20 @@ class Vulnerabilidade:
             cve_id=dados.get('cve_id'),
             cvss=AvaliacaoCVSS.from_dict(dados['cvss']) if dados.get('cvss') is not None else None,
             consultado_em=dados.get('consultado_em'),
+            adicionado_por=dados.get('adicionado_por', dados.get('modificado_por', '')), 
+            ultima_modificacao_por=dados.get('ultima_modificacao_por', dados.get('modificado_por', '')),
         )
 
     def __str__(self) -> str:
-        return (f'Descrição: {self.descricao} | Categoria: {self.categoria} | '
+        base = (f'Descrição: {self.descricao} | Categoria: {self.categoria} | '
                 f'Severidade: {self.severidade.name} | Status: {self.status.name}'
                 + (f' | CVE: {self.cve_id}' if self.cve_id else '')
                 + (f' | CVSS Base {self.cvss.versao}: {self.cvss.nota:.1f}'
                    f' | Vetor: {self.cvss.vetor} | Fonte: {self.cvss.fonte}' if self.cvss else ' | CVSS: não avaliado')
                 + (f' | Consultado em: {self.consultado_em}' if self.consultado_em else ''))
+        
+        rodape = f' | Adicionado por: {self.adicionado_por}' if self.adicionado_por else ''
+        if self.ultima_modificacao_por and self.ultima_modificacao_por != self.adicionado_por:
+            rodape += f' (Última modificação: {self.ultima_modificacao_por})'
+            
+        return base + rodape

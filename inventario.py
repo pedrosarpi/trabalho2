@@ -92,3 +92,18 @@ class Inventario:
             if alvo in ativo.nome.casefold():
                 encontrados[ativo.id_ativo] = ativo
         return list(encontrados.values())
+
+    def atualizar_nome_usuario_historico(self, nome_antigo: str, nome_novo: str) -> None:
+        """Percorre todos os ativos e vulnerabilidades para renomear o autor."""
+        for ativo in self._ativos.values():
+            if getattr(ativo, 'adicionado_por', '') == nome_antigo:
+                ativo.adicionado_por = nome_novo
+            if getattr(ativo, 'ultima_modificacao_por', '') == nome_antigo:
+                ativo.ultima_modificacao_por = nome_novo
+                
+            for vuln in ativo.vulnerabilidades:
+                if getattr(vuln, 'adicionado_por', '') == nome_antigo:
+                    vuln.adicionado_por = nome_novo
+                if getattr(vuln, 'ultima_modificacao_por', '') == nome_antigo:
+                    vuln.ultima_modificacao_por = nome_novo
+        self.salvar()

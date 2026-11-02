@@ -72,13 +72,16 @@ class Equipamento(ABC):
     def __init__(self, id_ativo: int, nome: str, responsavel: str, setor_localizacao: str,
                  status: StatusAtivo = StatusAtivo.ATIVO, descricao: str = '',
                  vulnerabilidades: list[Vulnerabilidade] | None = None,
-                 dependencias: list[Dependencia] | None = None):
+                 dependencias: list[Dependencia] | None = None,
+                 adicionado_por: str = '', ultima_modificacao_por: str = ''):
         self.id_ativo = id_ativo
         self.nome = nome
         self.responsavel = responsavel
         self.setor_localizacao = setor_localizacao
         self.status = status
         self.descricao = descricao
+        self.adicionado_por = adicionado_por
+        self.ultima_modificacao_por = ultima_modificacao_por or adicionado_por
         self._vulnerabilidades = list(vulnerabilidades or [])
         self._dependencias: dict[int, Dependencia] = {}
         for dependencia in dependencias or []:
@@ -140,8 +143,7 @@ class Equipamento(ABC):
 
     def atualizar(self, nome: str | None = None, responsavel: str | None = None,
                   setor_localizacao: str | None = None, descricao: str | None = None,
-                  status: StatusAtivo | None = None) -> None:
-        """Altera só o que for informado (None ou texto vazio = manter o valor atual)."""
+                  status: StatusAtivo | None = None, ultima_modificacao_por: str | None = None) -> None:
         if nome:
             self.nome = nome
         if responsavel:
@@ -152,21 +154,19 @@ class Equipamento(ABC):
             self.descricao = descricao
         if status is not None:
             self.status = status
+        if ultima_modificacao_por:
+            self.ultima_modificacao_por = ultima_modificacao_por
 
     def converter_para(self, novo_tipo: TipoAtivo) -> Equipamento:
-        """Cria um objeto da subclasse do novo tipo, com os mesmos dados.
-
-        Em Python, o tipo de um objeto não muda depois de criado; por isso,
-        trocar o tipo de um ativo significa criar um novo objeto equivalente.
-        """
         return Equipamento.criar(
             novo_tipo, id_ativo=self.id_ativo, nome=self.nome, responsavel=self.responsavel,
             setor_localizacao=self.setor_localizacao, status=self.status,
             descricao=self.descricao, vulnerabilidades=self._vulnerabilidades,
-            dependencias=list(self.dependencias))
+            dependencias=list(self.dependencias), 
+            adicionado_por=self.adicionado_por, ultima_modificacao_por=self.ultima_modificacao_por)
 
     def detalhes(self) -> str:
-        return (f'ID: {self.id_formatado}\n'
+        base = (f'ID: {self.id_formatado}\n'
                 f'Nome/hostname: {self.nome}\n'
                 f'Responsável: {self.responsavel}\n'
                 f'Setor/localização: {self.setor_localizacao}\n'
@@ -175,11 +175,16 @@ class Equipamento(ABC):
                 f'Descrição: {self.descricao or "Não informada"}\n'
                 f'Vulnerabilidades: {len(self._vulnerabilidades)}\n'
                 f'Dependências: {len(self._dependencias)}')
+        
+        auditoria = f'\nAdicionado por: {self.adicionado_por}' if self.adicionado_por else ''
+        if self.ultima_modificacao_por and self.ultima_modificacao_por != self.adicionado_por:
+            auditoria += f'\nÚltima modificação por: {self.ultima_modificacao_por}'
+            
+        return base + auditoria
 
     def __str__(self) -> str:
-        return f'{self.id_formatado} - {self.nome} | Tipo: {self.tipo.name} | Status: {self.status.name}'
-
-    # --- Conversão de/para JSON --------------------------------------------
+        base = f'{self.id_formatado} - {self.nome} | Tipo: {self.tipo.name} | Status: {self.status.name}'
+        return base + (f' | Adicionado por: {self.adicionado_por}' if self.adicionado_por else '')
 
     def to_dict(self) -> dict:
         return {
@@ -192,20 +197,19 @@ class Equipamento(ABC):
             'descricao': self.descricao,
             'vulnerabilidades': [v.to_dict() for v in self._vulnerabilidades],
             'dependencias': [d.to_dict() for d in self.dependencias],
+            'adicionado_por': self.adicionado_por,
+            'ultima_modificacao_por': self.ultima_modificacao_por,
         }
 
     @staticmethod
     def criar(tipo: TipoAtivo, **campos) -> Equipamento:
-        """Fábrica: escolhe a subclasse certa a partir do TipoAtivo."""
         return CLASSES_POR_TIPO[tipo](**campos)
 
     @staticmethod
     def from_dict(dados: dict) -> Equipamento:
         if not isinstance(dados, dict):
             raise ValueError('o registro não é um objeto JSON')
-        lista = dados.get('vulnerabilidades')
-        if lista is None:
-            lista = []
+        lista = dados.get('vulnerabilidades', [])
         if not isinstance(lista, list):
             raise ValueError("o campo 'vulnerabilidades' deve ser uma lista")
         vulnerabilidades = []
@@ -217,6 +221,11 @@ class Equipamento(ABC):
         dependencias = dados.get('dependencias', [])
         if not isinstance(dependencias, list):
             raise ValueError("o campo 'dependencias' deve ser uma lista")
+            
+        # Tratamento retroativo caso tenha ficado salvo como 'modificado_por'
+        add_por = dados.get('adicionado_por', dados.get('modificado_por', ''))
+        ult_mod = dados.get('ultima_modificacao_por', dados.get('modificado_por', ''))
+            
         return Equipamento.criar(
             campo_enum(TipoAtivo, dados, 'tipo'),
             id_ativo=converter_id(dados.get('id_ativo')),
@@ -226,7 +235,9 @@ class Equipamento(ABC):
             status=campo_enum(StatusAtivo, dados, 'status'),
             descricao=campo_texto(dados, 'descricao', obrigatorio=False),
             vulnerabilidades=vulnerabilidades,
-            dependencias=[Dependencia.from_dict(d) for d in dependencias])
+            dependencias=[Dependencia.from_dict(d) for d in dependencias],
+            adicionado_por=add_por,
+            ultima_modificacao_por=ult_mod)
 
 
 class EquipamentoFisico(Equipamento):
