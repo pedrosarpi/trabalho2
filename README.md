@@ -1,291 +1,190 @@
-# Sistema de gerenciamento de ativos e vulnerabilidades
+# Atlas - inventário de ativos, vulnerabilidades e risco
 
-Aplicação de terminal em Python com persistência JSON, consulta de CVEs na NVD
-(API 2.0), cálculo **CVSS Base** e **risco efetivo por álgebra linear** (requisito 4). Mantém as funcionalidades anteriores de
-cadastro, busca, atualização e remoção de ativos e vulnerabilidades.
+Interface web em Python/Flask sobre as classes do projeto original. O terminal
+continua disponível com `python main.py`. A web usa o mesmo modelo de domínio,
+JSON, cálculo CVSS e análise linear de risco; não é um protótipo com dados simulados.
 
-## Novidade: risco efetivo
+## Comece por aqui
 
-No menu principal, escolha **7 — Análise de risco e dependências**:
+- [Revisão, evidências e atendimento aos requisitos](docs/AUDITORIA.md).
+- [Instalação no servidor da disciplina e teste de 24 horas](docs/SERVIDOR.md).
+- [Roteiro de testes da interface](docs/TESTE_MANUAL.md).
+- [Explicação matemática e exemplos resolvidos](RISCO_EFETIVO.md).
 
-1. Cadastre ou altere dependências (quem recebe o risco, origem e peso).
-2. Liste as relações cadastradas.
-3. Remova uma relação.
-4. Consulte o risco próprio, herdado e efetivo de todos os equipamentos.
-5. Exiba as matrizes M, v, A, I − A e o diagnóstico numérico.
-6. Volte ao menu principal.
+## Executar no Fedora sem Docker
 
-O menu de vulnerabilidades mantém **6 = consultar CVE**, **7 = calcular CVSS**
-e **8 = voltar**. No menu principal, **7 = análise de risco**,
-**8 = gerenciar usuário** e **9 = sair** (última opção).
-
-Veja [RISCO_EFETIVO.md](RISCO_EFETIVO.md) para o modelo matemático, escolhas de
-implementação, exemplo resolvido à mão e roteiro de apresentação.
-
-## Instalação e execução
-
-Requer Python 3.11 ou superior. No Fedora, se necessário, instale o pip com
-`sudo dnf install python3-pip`. Na pasta do projeto, prepare o ambiente:
+Python 3.11 ou superior. Se faltar pip: `sudo dnf install python3-pip`.
+Na pasta deste projeto:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install -r requirements.txt
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+python web.py
 ```
 
-Instale também as dependências atualizadas (esta versão acrescenta NumPy):
+Abra **http://127.0.0.1:8000**. Crie uma conta ou entre com uma das contas locais
+existentes. As credenciais de SSH da faculdade não são automaticamente contas da
+aplicação. Não há senha padrão embutida.
+
+`python web.py` serve para teste local. No servidor, use o Docker/Gunicorn abaixo.
+A chave acima vale para esse terminal; trocar a chave encerra as sessões existentes.
+`SECRET_KEY` precisa ter pelo menos 32 caracteres, e não deve entrar no Git.
+
+Para testar com uma base isolada, antes de iniciar:
 
 ```bash
-python -m pip install -r requirements.txt
-python main.py
+mkdir -p dados-teste
+export INVENTARIO_ARQUIVO="$PWD/dados-teste/inventario.json"
+export USUARIOS_ARQUIVO="$PWD/dados-teste/usuarios.json"
+python web.py
 ```
 
-Recomenda-se instalar em um ambiente virtual (`python -m venv .venv`).
-Ativação no Windows: `.venv\Scripts\activate`; Linux/macOS: `source .venv/bin/activate`.
+Guarde essa pasta fora do Git. Para abrir o exemplo pronto de risco em uma base
+isolada, copie `exemplos/risco_tres_ativos.json` para o caminho de inventário
+**antes de iniciar**; não copie sobre uma base com dados que queira manter.
 
-A instalação das dependências precisa de internet. Depois de instaladas,
-o cadastro, a leitura dos dados, a calculadora e a análise de risco funcionam sem conexão.
-Apenas a consulta à NVD requer acesso à internet.
+## Executar com Docker Compose
 
-## Cadastro, login e gerenciamento de usuário
+Requer Docker Engine e Compose v2 funcionando. No servidor compartilhado, o nome
+do projeto deve ser único por aluno e a porta deve estar livre/autorizada:
 
-Ao iniciar, a aplicação exibe a tela de acesso. É possível fazer login, cadastrar
-um novo usuário ou sair. O cadastro exige usuário, senha com pelo menos seis
-caracteres e confirmação da senha. Se o usuário já existir ou as senhas não
-coincidirem, a aplicação informa o problema e permite tentar novamente.
-
-Depois do login, o nome do usuário aparece no menu principal. Em **8 — Gerenciar
-usuário**, é possível:
-
-- **Alterar login:** informar um novo nome e confirmar a alteração. Um login já
-  cadastrado é recusado. O novo nome também substitui o antigo nos campos de
-  autoria dos ativos e das vulnerabilidades do inventário.
-- **Alterar senha:** informar e confirmar a alteração. A senha nova passa a ser
-  usada no próximo login.
-- **Excluir conta:** confirmar a exclusão; a aplicação remove a conta e encerra.
-- **Voltar:** retornar ao menu principal sem alterar a conta.
-
-As contas ficam no arquivo `usuarios.json`, no diretório de execução, separado
-do inventário de ativos. As senhas são armazenadas como hashes SHA-256, não em
-texto simples. Esse mecanismo é básico e não substitui armazenamento de senhas
-com derivação específica e salt para uso em produção; proteja o arquivo e o
-ambiente onde a aplicação é executada.
-
-## Consultar e cadastrar um CVE
-
-1. Cadastre o ativo, se necessário.
-2. Faça login e, no menu principal, escolha **6 — Gerenciar vulnerabilidades**.
-3. Escolha **6 — Consultar CVE na NVD e cadastrar**.
-4. Digite um identificador, por exemplo `CVE-2021-44228`.
-5. Leia a descrição, o status público do registro, as avaliações e o link da NVD.
-6. Confira se o produto, a versão e as condições do seu ativo são afetados.
-7. Confirme o cadastro, selecione o ativo e, se houver várias avaliações,
-   escolha a fonte/versão desejada. Informe categoria e status do tratamento.
-
-A consulta não faz varredura, não detecta automaticamente softwares e não
-confirma que o ativo está vulnerável. Envia somente o CVE à NVD, nunca os dados
-do inventário. O status público do CVE é diferente do status de tratamento local.
-
-O sistema exibe todas as avaliações Base compatíveis encontradas, na ordem
-4.0, 3.1 e 3.0. Não combina notas nem escolhe automaticamente a maior nota.
-Cada avaliação mantém o vetor, a versão e a fonte informada pela NVD, que pode
-ser o NIST ou outra organização. O JSON armazena a avaliação escolhida.
-Uma nova consulta não atualiza registros antigos automaticamente.
-
-Registros rejeitados não são importados. Sem nota compatível, o cadastro fica
-**NAO_AVALIADA**, com `cvss: null`, em vez de receber nota zero.
-Notas divergentes do cálculo do vetor são ignoradas com aviso. Vetores contendo
-métricas além das Base não são importados nesta versão. CVSS 2.0 não é suportado.
-
-## Calcular CVSS localmente
-
-Em **Gerenciar vulnerabilidades**, escolha **7 — Calcular CVSS e aplicar a uma
-vulnerabilidade**. Há duas formas:
-
-- **Questionário CVSS 3.1:** responda às oito métricas Base. As respostas geram
-  um vetor e a biblioteca `cvss==3.6` executa o cálculo padronizado.
-- **Colar vetor:** aceita vetores Base de CVSS 3.0, 3.1 e 4.0.
-
-Exemplo didático (não representa, por si só, um CVE específico):
-
-```text
-CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+```bash
+python3 scripts/configurar.py --projeto inventario-sua-matricula --porta 18080
+docker compose config --quiet
+docker compose up -d --build --wait --wait-timeout 180
+docker compose ps
+curl --fail http://127.0.0.1:18080/healthz
 ```
 
-Resultado esperado: **9.8 — CRITICA**. No questionário, escolha respectivamente
-`1, 1, 1, 1, 1, 3, 3, 3` para obter o mesmo vetor.
+O script cria `.env` com chave aleatória e permissão 0600; não sobrescreve um
+arquivo já existente. Substitua `sua-matricula` pelo identificador real em letras
+minúsculas. No servidor, abra o navegador pelo túnel SSH explicado no guia.
 
-| Métrica 3.1 | Significado |
+A imagem usa Python 3.11, usuário sem privilégios, Gunicorn com **1 worker e 4
+threads**, checagem de saúde e volume `/dados` para inventário **e contas**.
+Os arquivos locais `usuarios.json`, `vulnerabilidades.json` e `.env` não entram na
+imagem. Um volume novo começa sem contas e sem ativos. As instruções de migração
+estão no guia do servidor.
+
+Um worker é uma escolha explícita para o contexto acadêmico: o intervalo de
+consultas NVD, o cache temporário de resultados e o limite de login vivem nesse
+processo. Não aumente `--workers` sem externalizar esses estados. As operações de
+inventário usam lock de arquivo e revisão para recusar formulários antigos.
+
+**O requisito 3 só estará concluído depois da execução e verificação de pelo
+menos 24 horas no servidor disponibilizado pelo docente.** Preparar os arquivos
+Docker ou passar no CI não comprova esse tempo.
+
+## Funcionalidades
+
+| Tela | Operações |
 | --- | --- |
-| AV | Vetor de ataque: rede, adjacente, local ou físico |
-| AC | Complexidade e condições fora do controle do atacante |
-| PR | Privilégios necessários antes da exploração |
-| UI | Necessidade de interação de outra pessoa |
-| S | Se o impacto ultrapassa a autoridade de segurança do componente |
-| C | Impacto na confidencialidade |
-| I | Impacto na integridade |
-| A | Impacto na disponibilidade |
+| Visão geral | Indicadores reais, tratamentos pendentes e gráfico de risco próprio/herdado |
+| Ativos | Criar, listar, buscar por ID/nome, filtrar tipo, editar, excluir e consultar detalhes |
+| Vulnerabilidades | Criar, listar, filtrar, editar descrição/categoria/status/severidade/CVE/CVSS e excluir |
+| Usuários | Cadastro, login, listagem, alteração do próprio login/senha e exclusão da própria conta |
+| Consultar CVE | NVD 2.0, fontes/versões, importação escolhida, data e autoria; falhas de rede tratadas |
+| Calcular CVSS | Questionário Base 3.1 ou vetor Base 3.0/3.1/4.0; cálculo e aplicação a um registro |
+| Dependências | Criar/atualizar/listar/remover relações, com direção da transmissão e percentuais |
+| Análise de risco | Risco próprio/herdado/efetivo, matrizes M/A/I−A, vetor v, equações e diagnóstico numérico |
+| Exportar inventário | Download autenticado do array JSON de ativos, sem hashes de senha |
 
-A seleção das métricas exige análise técnica da falha. A ferramenta calcula a
-nota das respostas; ela não descobre as respostas sozinha. Consulte a
-especificação para os critérios completos, especialmente a métrica de escopo.
+O desenho é responsivo, sem fontes, scripts ou gráficos de CDN. Apenas a consulta
+NVD requer internet depois da instalação. A web não realiza varredura ou detecção
+automática: associar um CVE exige conferir produtos, versões e condições afetadas.
 
-É possível apenas visualizar o resultado ou aplicá-lo a uma vulnerabilidade já
-cadastrada. Para uma falha nova sem CVE, use primeiro o cadastro manual (opção 1).
-Ao aplicar uma avaliação, a severidade é atualizada automaticamente. Substituir
-uma avaliação existente exige confirmação e passa a registrar a fonte como
-**Cálculo local**. A data de consulta, quando presente, continua se referindo à
-consulta do CVE, não ao novo cálculo local.
+## Contas, autoria e responsabilidade
 
-O CVE pode ser informado opcionalmente nesse fluxo. Sua sintaxe é validada,
-mas sua existência não é verificada online. Não é permitido repetir o mesmo CVE
-no mesmo ativo por estes fluxos; o mesmo CVE pode afetar ativos diferentes.
+- Todos os usuários autenticados são colaboradores do mesmo inventário. Não há
+  administrador nem separação de ativos por dono. Cada pessoa só gerencia sua
+  própria conta; a senha atual é exigida para alterações de conta.
+- `responsavel` é a pessoa/equipe responsável operacionalmente. Opcionalmente,
+  `responsavel_id` o vincula a uma conta selecionada na web.
+- `adicionado_por` e `ultima_modificacao_por` são nomes históricos; os campos
+  correspondentes terminados em `_id` identificam permanentemente as contas.
+  Alterar o login mantém o ID e não reescreve o histórico. A tela de detalhes
+  resolve o nome atual quando o ID ainda existe.
+- Ao excluir uma conta, ativos/vulnerabilidades permanecem. Vínculos antigos
+  retêm o ID e o nome histórico; uma nova conta com o mesmo login terá outro ID.
+- Registros antigos sem IDs continuam legíveis. Não são associados automaticamente
+  a uma conta só porque os nomes coincidem. Edite o responsável na web para
+  estabelecer um vínculo explícito.
+- Novas senhas usam scrypt com salt. Hashes SHA-256 da versão anterior são aceitos
+  e migrados após um login válido. Logins antigos com espaços ou um caractere
+  continuam funcionando; a regra de 2 a 64 caracteres vale para novos logins.
+- Trocar a senha invalida sessões anteriores. Há CSRF nos formulários, escape de
+  HTML, cookies HttpOnly/SameSite e limite de tentativas de login por IP.
+- `PERMITIR_CADASTRO=false` fecha novos cadastros; as contas existentes continuam
+  entrando. A configuração padrão preserva o cadastro disponível no programa original.
 
-### Escopo da calculadora
+## Persistência e concorrência
 
-Esta entrega calcula **apenas a pontuação Base**, sem métricas temporais,
-ambientais, de ameaça ou suplementares. Vetores com essas métricas são
-recusados explicitamente, sem descartá-las silenciosamente.
+O arquivo de ativos continua sendo **uma lista de objetos JSON**, um por ativo,
+com vulnerabilidades e dependências aninhadas. `usuarios.json` é um arquivo
+separado. `INVENTARIO_ARQUIVO` e `USUARIOS_ARQUIVO` permitem escolher os caminhos.
 
-| Nota | Classificação |
-| --- | --- |
-| 0.0 | NENHUMA |
-| 0.1–3.9 | BAIXA |
-| 4.0–6.9 | MEDIA |
-| 7.0–8.9 | ALTA |
-| 9.0–10.0 | CRITICA |
-| Sem avaliação | NAO_AVALIADA (ou severidade manual preexistente) |
+A escrita usa arquivo temporário, `fsync` e substituição atômica. A web recarrega
+a base em cada operação e trava o ciclo ler/editar/salvar. Formulários incluem uma
+revisão: se os dados mudarem em outra aba, uma resposta 409 pede para recarregar,
+sem aplicar a edição antiga. Erros de JSON não são convertidos em base vazia.
 
-CVSS mede severidade técnica. A prioridade de correção também depende da
-exposição, importância do ativo e contexto de exploração. Notas de versões
-CVSS diferentes não devem ser tratadas como equivalentes.
+Use a web como interface única da base em produção. Não execute o terminal,
+edições manuais dos JSON ou restaurações de backup enquanto a web escreve na mesma
+base. O CLI mantém uma coleção em memória; não é um cliente remoto multiusuário.
 
-## Rede e chave da NVD
+## Regras do risco e do CVSS
 
-A consulta usa HTTPS e timeout de 15 segundos. Falhas de conexão, respostas
-inválidas, erros HTTP, limites de uso e CVEs ausentes geram mensagens no terminal.
-As demais funções continuam disponíveis. Sem chave, o cliente espera pelo menos
-6 segundos entre suas requisições; com chave, 0,6 segundo. Esse controle é por
-instância do cliente, não global entre computadores/processos. Não há retries
-automáticos nem cache de consultas.
+`b = Mv`, `x = b + Ax`, portanto `(I−A)x=b`. A linha i de A recebe risco da coluna j.
+O cadastro exige Aii=0, pesos finitos em [0,1) e soma de linha <1. Dados importados
+com soma >=1 são diagnosticados; isso sozinho não prova singularidade.
 
-Uma chave é opcional e pode ser fornecida pela variável de ambiente
-`NVD_API_KEY`. Ela é enviada em cabeçalho e não é salva no JSON. Não coloque
-chaves no código ou no repositório. Em caso de bloqueio ou limite, aguarde antes
-de tentar novamente; os limites e condições do serviço podem mudar.
+O cálculo verifica posto e número de condição antes de usar `numpy.linalg.solve`,
+e confere o resíduo. O determinante é diagnóstico complementar. Sistema singular
+ou numericamente inseguro não recebe uma solução apresentada como confiável.
 
-## Dados e compatibilidade
+A nota Base CVSS tem prioridade. Sem CVSS, usa-se a escala **local**, que não é
+conversão oficial: NENHUMA=0, BAIXA=2, MEDIA=5, ALTA=8, CRITICA=10. Não avaliada
+bloqueia o cálculo em vez de virar zero. Todos os registros entram, inclusive os
+corrigidos, conforme a interpretação literal do modelo. O índice acumulado pode
+exceder 10; não é probabilidade nem outra nota CVSS.
 
-O arquivo padrão continua sendo `vulnerabilidades.json`, ao lado de `main.py`.
-É possível definir outro caminho com `INVENTARIO_ARQUIVO`. Faça backup de sua
-base antes de substituir uma instalação anterior.
+M tem uma coluna por ocorrência de vulnerabilidade cadastrada. O mesmo CVE em dois
+ativos aparece como duas ocorrências, com severidade própria. A descrição completa
+dessas escolhas está em `RISCO_EFETIVO.md`.
 
-Os registros antigos continuam sendo lidos. Campos novos são opcionais:
+## Testes
 
-```json
-{
-  "descricao": "Exemplo didático de falha",
-  "categoria": "Software",
-  "severidade": "CRITICA",
-  "status": "ABERTA",
-  "cve_id": null,
-  "cvss": {
-    "versao": "3.1",
-    "vetor": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-    "nota": 9.8,
-    "fonte": "Cálculo local"
-  },
-  "consultado_em": null
-}
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+python -m flake8 . --count --select=E9,F63,F7,F82 --statistics
 ```
 
-Esse objeto fica dentro da lista de vulnerabilidades de um ativo; não substitui
-o formato geral do inventário. Na leitura, versão e nota são conferidas contra
-o vetor. As opções existentes de ativos e vulnerabilidades conservaram sua
-numeração; o gerenciamento de usuário ocupa a opção 8 do menu principal, e
-**Sair** agora é a opção 9.
+A suíte usa arquivos temporários e respostas NVD simuladas; o cálculo CVSS e a
+álgebra linear são reais. O GitHub Actions roda em Python 3.11 e 3.12 em pushes de
+qualquer branch e PRs. Um job separado constrói o container, testa HTTP e confirma
+persistência após reinício. Esse job não executa a prova de 24 horas.
 
 ## Organização do código
 
 | Arquivo | Responsabilidade |
 | --- | --- |
-| `seguranca.py` | Validação de CVE, cálculo e classificação CVSS, serialização da avaliação |
-| `consulta_cve.py` | HTTP, intervalo de requisições, interpretação da resposta NVD |
-| `interface_cvss.py` | Questionário 3.1, entrada de vetor e exibição da avaliação |
-| `modelos.py` | Vulnerabilidade, associação ao CVE e severidade derivada da avaliação |
-| `menus.py` | Consulta, escolha da avaliação, cadastro e aplicação do cálculo |
-| `autenticacao.py` | Cadastro, autenticação e gerenciamento das contas locais |
-| `test_cve_cvss.py` | Testes da integração, cálculo, persistência e falhas |
-| `test_sistema.py` | Testes do sistema, persistência, menus e operações de ativos |
-| `equipamentos.py` | Hierarquia de ativos e objetos Dependencia |
-| `riscos.py` | Montagem de M, v e A; diagnóstico e solução do sistema linear |
-| `test_riscos.py` | Casos manuais, estabilidade, dependências, persistência e menus |
+| `equipamentos.py`, `modelos.py` | Classes, herança, composição, enumerações e validações |
+| `inventario.py`, `dados.py`, `persistencia.py` | CRUD em memória, formato JSON e escrita atômica |
+| `riscos.py` | Montagem das matrizes, invertibilidade, solução e diagnóstico |
+| `seguranca.py`, `consulta_cve.py` | CVSS Base e consulta NVD |
+| `autenticacao.py` | Contas, hash, migração, identidade e sessões |
+| `servicos.py` | Unidade de trabalho web e controle de edições concorrentes |
+| `web.py`, `templates/`, `static/` | Rotas, formulários, HTML, CSS e JavaScript |
+| `main.py`, `menus.py`, `interface_cvss.py` | Interface de terminal preservada |
+| `scripts/` | Configuração, smoke test de CI e monitor das 24 horas |
 
-O cálculo matemático é delegado à biblioteca `cvss`, evitando implementar
-manualmente as fórmulas, arredondamentos e tabelas de CVSS 4.0.
+## Referências técnicas
 
-## Testes
-
-```bash
-python -m pytest -q
-python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-```
-
-Os testes automáticos simulam a rede, usando cálculos reais. Cobrem vetores de
-referência, faixas, entradas inválidas, múltiplas fontes, notas ausentes ou
-divergentes, CVEs rejeitados, timeout, HTTP 403/429/500, leitura de dados antigos,
-recarga do JSON e fluxos do menu. Não dependem da disponibilidade da NVD.
-
-## Docker
-
-O `Dockerfile` instala todas as dependências declaradas, inclusive NumPy. O
-`compose.yaml` mantém a entrada interativa aberta e os dados em um volume.
-
-```bash
-docker compose up -d --build
-docker compose attach inventario
-```
-
-Se o menu não reaparecer ao conectar, pressione Enter. Para se desconectar e
-manter o programa em execução, use **Ctrl+P e depois Ctrl+Q**, sem escolher Sair.
-Para parar o serviço, use `docker compose down`. O volume é preservado.
-Com `restart: unless-stopped`, sair pelo menu pode reiniciar o serviço; use
-`docker compose down` quando a intenção for encerrá-lo.
-
-A base do container começa vazia e é independente do JSON local. Para usar uma
-base existente, com o serviço parado (antes do primeiro `up`, ou após `stop`):
-
-```bash
-docker compose run --rm -T inventario python -c "from pathlib import Path; import sys; Path('/dados/vulnerabilidades.json').write_bytes(sys.stdin.buffer.read())" < vulnerabilidades.json
-docker compose up -d
-```
-
-Esse comando substitui a base do volume. Use-o somente na inicialização ou
-após fazer backup da base anterior. Não execute duas instâncias do programa
-escrevendo simultaneamente no mesmo JSON.
-
-Verifique o tempo contínuo de execução com `docker compose ps` e:
-
-```bash
-docker inspect --format '{{.State.StartedAt}} | reinícios={{.RestartCount}}' "$(docker compose ps -q inventario)"
-```
-
-O requisito de **24 horas** precisa ser demonstrado no servidor do docente.
-Os arquivos Docker estão preparados, mas esta entrega não comprova esse período.
-Docker não estava disponível no ambiente de edição; a construção da imagem e
-os testes dentro dela estão configurados no CI e devem ser confirmados no GitHub.
-
-O workflow executa os testes em pushes de qualquer branch e em pull requests
-para main. Isso permite validar esta versão antes de fazer merge.
-
-## Referências
-
-- NVD API: https://nvd.nist.gov/developers/vulnerabilities
-- Recomendações de uso: https://nvd.nist.gov/developers/start-here
-- CVSS 3.1: https://www.first.org/cvss/v3.1/specification-document
-- CVSS 4.0: https://www.first.org/cvss/v4.0/specification-document
-- Biblioteca e exemplos: https://pypi.org/project/cvss/3.6/
-- Identificadores CVE: https://www.cve.org/
-
-- NumPy solve: https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html
-- NumPy matrix_rank: https://numpy.org/doc/stable/reference/generated/numpy.linalg.matrix_rank.html
-- NumPy cond: https://numpy.org/doc/stable/reference/generated/numpy.linalg.cond.html
+- [Flask: Gunicorn](https://flask.palletsprojects.com/en/stable/deploying/gunicorn/)
+- [Flask: segurança](https://flask.palletsprojects.com/en/stable/web-security/)
+- [Werkzeug: geração e verificação de hashes](https://werkzeug.palletsprojects.com/en/stable/utils/)
+- [Docker Compose: serviços](https://docs.docker.com/reference/compose-file/services/)
+- [Docker: publicação de portas](https://docs.docker.com/engine/network/port-publishing/)

@@ -1,0 +1,22 @@
+{
+  "data": "2026-11-02",
+  "python": "3.12.14",
+  "pytest": {
+    "testes_aprovados": 211,
+    "subtestes_aprovados": 10,
+    "falhas": 0
+  },
+  "lint_critico_erros": 0,
+  "pip_check": "OK",
+  "navegador": {
+    "desktop": "1440x1000",
+    "mobile": "390x844",
+    "erros_js": 0,
+    "fluxo_real": "login, ativo, vulnerabilidade, CVSS e exclusao"
+  },
+  "http_real": "Gunicorn com persistencia apos reinicio",
+  "docker_executado_localmente": false,
+  "servidor_acessado": false,
+  "teste_real_24h_concluido": false,
+  "NVD_automatica": "simulada nos testes; conexao real pendente no servidor"
+}

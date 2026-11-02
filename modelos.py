@@ -71,9 +71,12 @@ class Vulnerabilidade:
     def __init__(self, descricao: str, categoria: str, severidade: SeveridadeVulnerabilidade,
                  status: StatusTratamento = StatusTratamento.ABERTA, *,
                  cve_id=None, cvss=None, consultado_em=None, 
-                 adicionado_por: str = '', ultima_modificacao_por: str = ''):
-        self.descricao = descricao
-        self.categoria = categoria
+                 adicionado_por: str = '', ultima_modificacao_por: str = '',
+                 adicionado_por_id: str = '', ultima_modificacao_por_id: str = ''):
+        self.descricao = campo_texto({'descricao': descricao}, 'descricao')
+        self.categoria = campo_texto({'categoria': categoria}, 'categoria')
+        if not isinstance(severidade, SeveridadeVulnerabilidade) or not isinstance(status, StatusTratamento):
+            raise ValueError('Severidade ou status inválido.')
         self.cve_id = validar_cve(cve_id)
         self.cvss = AvaliacaoCVSS.from_dict(cvss.to_dict()) if cvss is not None else None
         if consultado_em is not None and not isinstance(consultado_em, str):
@@ -81,6 +84,11 @@ class Vulnerabilidade:
         self.consultado_em = consultado_em
         self._severidade = severidade
         self.status = status
+        for valor in (adicionado_por, ultima_modificacao_por, adicionado_por_id, ultima_modificacao_por_id):
+            if not isinstance(valor, str):
+                raise ValueError('Os campos de autoria devem ser textos.')
+        self.adicionado_por_id = adicionado_por_id
+        self.ultima_modificacao_por_id = ultima_modificacao_por_id or adicionado_por_id
         self.adicionado_por = adicionado_por
         self.ultima_modificacao_por = ultima_modificacao_por or adicionado_por
 
@@ -104,6 +112,8 @@ class Vulnerabilidade:
             'cve_id': self.cve_id,
             'cvss': self.cvss.to_dict() if self.cvss else None,
             'consultado_em': self.consultado_em,
+            'adicionado_por_id': self.adicionado_por_id,
+            'ultima_modificacao_por_id': self.ultima_modificacao_por_id,
             'adicionado_por': self.adicionado_por,
             'ultima_modificacao_por': self.ultima_modificacao_por,
         }
@@ -120,6 +130,8 @@ class Vulnerabilidade:
             cve_id=dados.get('cve_id'),
             cvss=AvaliacaoCVSS.from_dict(dados['cvss']) if dados.get('cvss') is not None else None,
             consultado_em=dados.get('consultado_em'),
+            adicionado_por_id=dados.get('adicionado_por_id', ''),
+            ultima_modificacao_por_id=dados.get('ultima_modificacao_por_id', ''),
             adicionado_por=dados.get('adicionado_por', dados.get('modificado_por', '')), 
             ultima_modificacao_por=dados.get('ultima_modificacao_por', dados.get('modificado_por', '')),
         )

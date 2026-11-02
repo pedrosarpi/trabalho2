@@ -265,18 +265,19 @@ class TestMenus(unittest.TestCase):
 
 
 class TestMain(unittest.TestCase):
-    def test_ctrl_c_encerra_sem_traceback(self):
+    def test_json_corrompido_bloqueia_inicio_e_preserva_arquivo(self):
         with tempfile.TemporaryDirectory() as pasta:
             caminho = os.path.join(pasta, 'dados.json')
             with open(caminho, 'w', encoding='utf-8') as arquivo:
                 arquivo.write('{ quebrado')
             saida = io.StringIO()
             with patch.dict(os.environ, {'INVENTARIO_ARQUIVO': caminho}), \
-                    patch('menus.exibir_tela_login', return_value='teste_user'), \
+                    patch('main.exibir_tela_login', return_value='teste_user'), \
                     patch('builtins.input', side_effect=KeyboardInterrupt), \
                     contextlib.redirect_stdout(saida):
                 aplicacao.main()
-            self.assertIn('Programa encerrado.', saida.getvalue())
+            self.assertIn('Corrija ou restaure', saida.getvalue())
+            self.assertEqual(open(caminho, encoding='utf-8').read(), '{ quebrado')
             self.assertIn('JSON válido', saida.getvalue())       # avisou do arquivo quebrado
             self.assertTrue(any(nome.endswith('.bak') for nome in os.listdir(pasta)))  # e guardou cópia
 

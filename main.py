@@ -21,15 +21,19 @@ def main() -> None:
         copia = armazenamento.guardar_copia()
         if copia:
             mensagem_aviso(f'Uma cópia do arquivo original foi guardada em:\n{copia}\n'
-                           'O programa vai iniciar com a base vazia.')
+                           'Corrija ou restaure a base antes de iniciar novamente.')
         else:
-            mensagem_aviso('O programa vai iniciar com a base vazia.')
+            mensagem_aviso('Corrija ou restaure a base antes de iniciar novamente.')
+
+        return
 
     try:
         usuario_logado = exibir_tela_login()
         if usuario_logado is not None:
             # Instancia passando o usuário agora
             MenuPrincipal(inventario, usuario_logado).executar()
+    except (ErroArmazenamento, ValueError) as erro:
+        mensagem_erro(str(erro))
     except (KeyboardInterrupt, EOFError):
         print()
         mensagem_aviso('Programa encerrado.')

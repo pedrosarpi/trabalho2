@@ -29,6 +29,8 @@ class Inventario:
     def adicionar(self, equipamento: Equipamento) -> None:
         if equipamento.id_ativo in self._ativos:
             raise ValueError('Já existe um ativo com esse identificador.')
+        if self.nome_em_uso(equipamento.nome, ignorar_id=equipamento.id_ativo):
+            raise ValueError('Já existe um ativo com esse nome ou hostname.')
         self._ativos[equipamento.id_ativo] = equipamento
 
     def obter(self, id_ativo: int) -> Equipamento | None:
@@ -41,6 +43,8 @@ class Inventario:
         """Troca o objeto de um ativo existente (usado quando o tipo muda)."""
         if equipamento.id_ativo not in self._ativos:
             raise KeyError(equipamento.id_ativo)
+        if self.nome_em_uso(equipamento.nome, ignorar_id=equipamento.id_ativo):
+            raise ValueError('Já existe um ativo com esse nome ou hostname.')
         self._ativos[equipamento.id_ativo] = equipamento
 
     def remover(self, id_ativo: int) -> Equipamento:

@@ -10,6 +10,7 @@ import shutil
 from datetime import datetime
 
 from equipamentos import Equipamento, validar_referencias
+from persistencia import gravar_json
 
 
 class ErroArmazenamento(Exception):
@@ -57,18 +58,9 @@ class ArmazenamentoJSON:
         except ValueError as erro:
             raise ErroArmazenamento(f'Dependências inválidas: {erro}') from erro
         dados = [equipamento.to_dict() for equipamento in equipamentos]
-        temporario = self.caminho + '.tmp'
         try:
-            # Grava num arquivo temporário e só então troca: se algo falhar no
-            # meio da gravação, o arquivo bom anterior continua intacto.
-            with open(temporario, 'w', encoding='utf-8') as arquivo:
-                json.dump(dados, arquivo, ensure_ascii=False, indent=4)
-            os.replace(temporario, self.caminho)
-        except OSError as erro:
-            try:
-                os.remove(temporario)
-            except OSError:
-                pass
+            gravar_json(self.caminho, dados)
+        except (OSError, ValueError) as erro:
             raise ErroArmazenamento(f'Não foi possível salvar o arquivo de dados: {erro}') from erro
 
     def guardar_copia(self) -> str | None:

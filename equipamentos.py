@@ -73,11 +73,22 @@ class Equipamento(ABC):
                  status: StatusAtivo = StatusAtivo.ATIVO, descricao: str = '',
                  vulnerabilidades: list[Vulnerabilidade] | None = None,
                  dependencias: list[Dependencia] | None = None,
-                 adicionado_por: str = '', ultima_modificacao_por: str = ''):
-        self.id_ativo = id_ativo
-        self.nome = nome
-        self.responsavel = responsavel
-        self.setor_localizacao = setor_localizacao
+                 adicionado_por: str = '', ultima_modificacao_por: str = '',
+                 adicionado_por_id: str = '', ultima_modificacao_por_id: str = '',
+                 responsavel_id: str = ''):
+        self.id_ativo = converter_id(id_ativo)
+        self.nome = campo_texto({'nome': nome}, 'nome')
+        self.responsavel = campo_texto({'responsavel': responsavel}, 'responsavel')
+        self.setor_localizacao = campo_texto({'setor': setor_localizacao}, 'setor')
+        if not isinstance(status, StatusAtivo):
+            raise ValueError('Status de ativo inválido.')
+        for valor in (descricao, adicionado_por, ultima_modificacao_por, adicionado_por_id,
+                      ultima_modificacao_por_id, responsavel_id):
+            if not isinstance(valor, str):
+                raise ValueError('Descrição e campos de autoria/responsável devem ser textos.')
+        self.responsavel_id = responsavel_id
+        self.adicionado_por_id = adicionado_por_id
+        self.ultima_modificacao_por_id = ultima_modificacao_por_id or adicionado_por_id
         self.status = status
         self.descricao = descricao
         self.adicionado_por = adicionado_por
@@ -117,7 +128,19 @@ class Equipamento(ABC):
         return tuple(self._vulnerabilidades)
 
     def adicionar_vulnerabilidade(self, vulnerabilidade: Vulnerabilidade) -> None:
+        if not isinstance(vulnerabilidade, Vulnerabilidade):
+            raise ValueError('Vulnerabilidade inválida.')
+        if vulnerabilidade.cve_id and any(v.cve_id == vulnerabilidade.cve_id for v in self.vulnerabilidades):
+            raise ValueError('Este CVE já está cadastrado neste ativo.')
         self._vulnerabilidades.append(vulnerabilidade)
+
+    def substituir_vulnerabilidade(self, indice: int, vulnerabilidade: Vulnerabilidade) -> None:
+        if not 0 <= indice < len(self._vulnerabilidades):
+            raise ValueError('Vulnerabilidade não encontrada.')
+        if vulnerabilidade.cve_id and any(i != indice and v.cve_id == vulnerabilidade.cve_id
+                                          for i, v in enumerate(self.vulnerabilidades)):
+            raise ValueError('Este CVE já está cadastrado neste ativo.')
+        self._vulnerabilidades[indice] = vulnerabilidade
 
     def remover_vulnerabilidade(self, vulnerabilidade: Vulnerabilidade) -> None:
         self._vulnerabilidades.remove(vulnerabilidade)
@@ -163,7 +186,9 @@ class Equipamento(ABC):
             setor_localizacao=self.setor_localizacao, status=self.status,
             descricao=self.descricao, vulnerabilidades=self._vulnerabilidades,
             dependencias=list(self.dependencias), 
-            adicionado_por=self.adicionado_por, ultima_modificacao_por=self.ultima_modificacao_por)
+            adicionado_por=self.adicionado_por, ultima_modificacao_por=self.ultima_modificacao_por,
+            adicionado_por_id=self.adicionado_por_id, ultima_modificacao_por_id=self.ultima_modificacao_por_id,
+            responsavel_id=self.responsavel_id)
 
     def detalhes(self) -> str:
         base = (f'ID: {self.id_formatado}\n'
@@ -197,6 +222,9 @@ class Equipamento(ABC):
             'descricao': self.descricao,
             'vulnerabilidades': [v.to_dict() for v in self._vulnerabilidades],
             'dependencias': [d.to_dict() for d in self.dependencias],
+            'adicionado_por_id': self.adicionado_por_id,
+            'ultima_modificacao_por_id': self.ultima_modificacao_por_id,
+            'responsavel_id': self.responsavel_id,
             'adicionado_por': self.adicionado_por,
             'ultima_modificacao_por': self.ultima_modificacao_por,
         }
@@ -236,6 +264,9 @@ class Equipamento(ABC):
             descricao=campo_texto(dados, 'descricao', obrigatorio=False),
             vulnerabilidades=vulnerabilidades,
             dependencias=[Dependencia.from_dict(d) for d in dependencias],
+            adicionado_por_id=dados.get('adicionado_por_id', ''),
+            ultima_modificacao_por_id=dados.get('ultima_modificacao_por_id', ''),
+            responsavel_id=dados.get('responsavel_id', ''),
             adicionado_por=add_por,
             ultima_modificacao_por=ult_mod)
 

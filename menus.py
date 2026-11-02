@@ -8,9 +8,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import math
 import sys
+from getpass import getpass
 
 from consulta_cve import ClienteNVD, ErroConsultaCVE
-from autenticacao import registrar_usuario, autenticar_usuario, alterar_login, alterar_senha_usuario, deletar_usuario
+from autenticacao import registrar_usuario, autenticar_usuario, alterar_login, alterar_senha_usuario, deletar_usuario, repositorio
 from interface_cvss import ler_avaliacao, mostrar_avaliacao
 from seguranca import validar_cve
 from dados import ErroArmazenamento
@@ -31,18 +32,18 @@ def exibir_tela_login() -> str | None:
             return None # Alterado para retornar None
         elif opcao == 1:
             usuario = ler_texto("Usuário: ")
-            senha = ler_texto("Senha: ")
+            senha = getpass("Senha: ")
             if autenticar_usuario(usuario, senha):
                 return usuario # Alterado para retornar o nome do usuário
             mensagem_erro("Usuário ou senha inválidos.")
         elif opcao == 2:
             usuario = ler_texto("Novo usuário: ")
             while True:
-                senha = ler_texto("Nova senha (mínimo de 6 caracteres): ")
+                senha = getpass("Nova senha (mínimo de 6 caracteres): ")
                 if len(senha) < 6:
                     mensagem_aviso("A senha deve ter pelo menos 6 caracteres.")
                     continue
-                confirmacao = ler_texto("Confirme a senha: ")
+                confirmacao = getpass("Confirme a senha: ")
                 if senha != confirmacao:
                     mensagem_erro("As senhas não coincidem. Tente novamente.")
                     continue
@@ -59,6 +60,8 @@ class Menu(ABC):
     def __init__(self, inventario, usuario_logado: str):
         self.inventario = inventario
         self.usuario_logado = usuario_logado
+        conta = next((u for u in repositorio().listar() if u['login'] == usuario_logado), None)
+        self.usuario_id = conta['id'] if conta else ''
 
     @abstractmethod
     def opcoes(self) -> dict:
@@ -84,7 +87,10 @@ class Menu(ABC):
             if acao is None:
                 self.ao_sair()
                 return
-            acao()
+            try:
+                acao()
+            except (ValueError, ErroArmazenamento) as erro:
+                mensagem_erro(str(erro))
 
     # --- Auxiliares usados pelos menus concretos ---------------------------
 
@@ -97,7 +103,6 @@ class Menu(ABC):
         return True
 
     def _selecionar_ativo(self, mensagem: str) -> Equipamento | None:
-        # ... (Mantem original)
         ativos = self.inventario.listar()
         if not ativos:
             mensagem_aviso('Nenhum ativo cadastrado.')
@@ -112,7 +117,6 @@ class Menu(ABC):
         return ativos[opcao - 1]
 
     def _selecionar_vulnerabilidade(self, ativo: Equipamento, mensagem: str) -> Vulnerabilidade | None:
-        # ... (Mantem original)
         vulnerabilidades = ativo.vulnerabilidades
         if not vulnerabilidades:
             mensagem_aviso('Esse ativo não possui vulnerabilidades cadastradas.')
@@ -131,10 +135,10 @@ class Menu(ABC):
         categoria = ler_texto('Digite a categoria ou tipo da vulnerabilidade: ')
         severidade = escolher_enum('Selecione a severidade:', SeveridadeVulnerabilidade)
         status = escolher_enum('Selecione o status do tratamento:', StatusTratamento)
-        # ADICIONADO modificado_por
         return Vulnerabilidade(descricao, categoria, severidade, status, 
                                adicionado_por=self.usuario_logado, 
-                               ultima_modificacao_por=self.usuario_logado)
+                               ultima_modificacao_por=self.usuario_logado,
+                               adicionado_por_id=self.usuario_id, ultima_modificacao_por_id=self.usuario_id)
 
 
 class MenuPrincipal(Menu):
@@ -152,7 +156,7 @@ class MenuPrincipal(Menu):
             5: ('Remover ativo', self.remover_ativo),
             6: ('Gerenciar vulnerabilidades', self.gerenciar_vulnerabilidades),
             7: ('Análise de risco e dependências', self.gerenciar_riscos),
-            8: ('Gerenciar usuário', self.gerenciar_usuario), # NOVA OPÇÃO
+            8: ('Gerenciar usuário', self.gerenciar_usuario),
             9: ('Sair', None),
         }
 
@@ -164,18 +168,20 @@ class MenuPrincipal(Menu):
         print("1 - Alterar Login\n2 - Alterar Senha\n3 - Excluir Conta\n0 - Voltar")
         opcao = ler_inteiro("\nOpção: ", minimo=0, maximo=3)
 
+        if opcao != 0 and not autenticar_usuario(self.usuario_logado, getpass('Senha atual: ')):
+            mensagem_erro('Senha atual incorreta.')
+            return
         if opcao == 1:
             novo_login = ler_texto("Digite o novo nome de usuário: ")
             if confirmar(f"Deseja salvar o login como '{novo_login}'?"):
                 if alterar_login(self.usuario_logado, novo_login):
-                    self.inventario.atualizar_nome_usuario_historico(self.usuario_logado, novo_login)
                     self.usuario_logado = novo_login
                     mensagem_sucesso(f"Login atualizado para '{novo_login}'.")
                 else:
                     mensagem_erro("Esse nome de usuário já está em uso.")
                     
         elif opcao == 2:
-            nova_senha = ler_texto("Nova senha: ")
+            nova_senha = getpass("Nova senha: ")
             if confirmar("Confirmar alteração de senha?"):
                 alterar_senha_usuario(self.usuario_logado, nova_senha)
                 mensagem_sucesso("Senha atualizada com sucesso.")
@@ -204,11 +210,11 @@ class MenuPrincipal(Menu):
         status = escolher_enum('Selecione o status do ativo:', StatusAtivo)
         descricao = ler_texto('Digite a descrição do ativo (opcional): ', obrigatorio=False)
 
-        # ADICIONADO modificado_por
         ativo = Equipamento.criar(
             tipo, id_ativo=id_ativo, nome=nome, responsavel=responsavel,
             setor_localizacao=setor, status=status, descricao=descricao, 
-            adicionado_por=self.usuario_logado, ultima_modificacao_por=self.usuario_logado)
+            adicionado_por=self.usuario_logado, ultima_modificacao_por=self.usuario_logado,
+            adicionado_por_id=self.usuario_id, ultima_modificacao_por_id=self.usuario_id)
 
         pergunta = 'Deseja cadastrar uma vulnerabilidade para este ativo agora?'
         while confirmar(pergunta):
@@ -256,10 +262,10 @@ class MenuPrincipal(Menu):
         if confirmar(f'Alterar status ({ativo.status.name})?'):
             novo_status = escolher_enum('Selecione o novo status:', StatusAtivo)
 
-        # ADICIONADO modificado_por
         ativo.atualizar(nome=novo_nome, responsavel=novo_responsavel, setor_localizacao=novo_setor,
                         descricao=nova_descricao, status=novo_status, 
                         ultima_modificacao_por=self.usuario_logado)
+        ativo.ultima_modificacao_por_id = self.usuario_id
         if novo_tipo is not None and novo_tipo != ativo.tipo:
             self.inventario.substituir(ativo.converter_para(novo_tipo))
         if self._salvar():
@@ -352,6 +358,7 @@ class MenuVulnerabilidades(Menu):
         if vulnerabilidade is None:
             return
         vulnerabilidade.alterar_status(escolher_enum('Selecione o novo status:', StatusTratamento), modificado_por=self.usuario_logado)
+        vulnerabilidade.ultima_modificacao_por_id = self.usuario_id
         if self._salvar():
             mensagem_sucesso('Status atualizado com sucesso.')
 
@@ -408,7 +415,9 @@ class MenuVulnerabilidades(Menu):
         status = escolher_enum('Status do tratamento:', StatusTratamento)
         vulnerabilidade = Vulnerabilidade(
             resultado.descricao, categoria, SeveridadeVulnerabilidade.NAO_AVALIADA, status,
-            cve_id=resultado.cve_id, cvss=avaliacao, consultado_em=resultado.consultado_em)
+            cve_id=resultado.cve_id, cvss=avaliacao, consultado_em=resultado.consultado_em,
+            adicionado_por=self.usuario_logado, ultima_modificacao_por=self.usuario_logado,
+            adicionado_por_id=self.usuario_id, ultima_modificacao_por_id=self.usuario_id)
         ativo.adicionar_vulnerabilidade(vulnerabilidade)
         if self._salvar():
             mensagem_sucesso('CVE cadastrado com sucesso.')
@@ -442,7 +451,8 @@ class MenuVulnerabilidades(Menu):
                 return
         vulnerabilidade.cvss = avaliacao
         vulnerabilidade.cve_id = cve_id
-        vulnerabilidade.ultima_modificacao_por = self.usuario_logado # Atualiza a autoria
+        vulnerabilidade.ultima_modificacao_por = self.usuario_logado
+        vulnerabilidade.ultima_modificacao_por_id = self.usuario_id
         if self._salvar():
             mensagem_sucesso('CVSS aplicado; severidade atualizada automaticamente.')
 
