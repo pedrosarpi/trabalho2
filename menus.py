@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 import math
 
 from consulta_cve import ClienteNVD, ErroConsultaCVE
+from autenticacao import registrar_usuario, autenticar_usuario
 from interface_cvss import ler_avaliacao, mostrar_avaliacao
 from seguranca import validar_cve
 from dados import ErroArmazenamento
@@ -17,6 +18,46 @@ from modelos import SeveridadeVulnerabilidade, StatusAtivo, StatusTratamento, Ti
 from riscos import ErroAnaliseRisco
 from utilidades import (AZUL, RESET, cabecalho, confirmar, escolher_enum, ler_inteiro, ler_texto,
                         mensagem_aviso, mensagem_erro, mensagem_sucesso)
+
+def exibir_tela_login() -> bool:
+    """Controla o acesso inicial antes de instanciar os menus da aplicação."""
+    while True:
+        cabecalho(f'{AZUL}TELA DE ACESSO{RESET}')
+        print("1 - Fazer Login\n2 - Cadastrar Novo Usuário\n0 - Sair")
+        opcao = ler_inteiro("\nOpção: ", minimo=0, maximo=2)
+
+        if opcao == 0:
+            print("Saindo do programa...")
+            return False
+        elif opcao == 1:
+            usuario = ler_texto("Usuário: ")
+            senha = ler_texto("Senha: ")
+            if autenticar_usuario(usuario, senha):
+                mensagem_sucesso(f"Bem-vindo, {usuario}!")
+                return True
+            mensagem_erro("Usuário ou senha inválidos.")
+        elif opcao == 2:
+            usuario = ler_texto("Novo usuário: ")
+            
+            # Novo bloco de validação de senha
+            while True:
+                senha = ler_texto("Nova senha (mínimo de 6 caracteres): ")
+                if len(senha) < 6:
+                    mensagem_aviso("A senha deve ter pelo menos 6 caracteres.")
+                    continue
+                
+                confirmacao = ler_texto("Confirme a senha: ")
+                if senha != confirmacao:
+                    mensagem_erro("As senhas não coincidem. Tente novamente.")
+                    continue
+                
+                # Se passou pelas duas validações, sai do laço
+                break
+                
+            if registrar_usuario(usuario, senha):
+                mensagem_sucesso("Usuário cadastrado com sucesso!")
+            else:
+                mensagem_erro("O usuário já existe.")
 
 
 class Menu(ABC):

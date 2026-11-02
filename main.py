@@ -3,10 +3,23 @@ import os
 
 from dados import ArmazenamentoJSON, ErroArmazenamento
 from inventario import Inventario
-from menus import MenuPrincipal
+from menus import MenuPrincipal, exibir_tela_login
 from utilidades import mensagem_aviso, mensagem_erro
 
 NOME_ARQUIVO = 'vulnerabilidades.json'
+
+def main() -> None:
+    armazenamento = ArmazenamentoJSON(caminho_do_arquivo())
+    inventario = Inventario(armazenamento)
+    # ... (bloco try-except de carregamento do inventário mantido) ...
+
+    try:
+        # Só executa o MenuPrincipal se o login retornar True
+        if exibir_tela_login():
+            MenuPrincipal(inventario).executar()
+    except (KeyboardInterrupt, EOFError):
+        print()
+        mensagem_aviso('Programa encerrado.')
 
 
 def caminho_do_arquivo() -> str:
@@ -34,7 +47,9 @@ def main() -> None:
             mensagem_aviso('O programa vai iniciar com a base vazia.')
 
     try:
-        MenuPrincipal(inventario).executar()
+        # Chama a tela de login e só entra no menu principal se retornar True
+        if exibir_tela_login():
+            MenuPrincipal(inventario).executar()
     except (KeyboardInterrupt, EOFError):
         # Ctrl+C / Ctrl+D: os dados já foram gravados a cada operação.
         print()
