@@ -1,0 +1,92 @@
+[
+    {
+        "id_ativo": 1,
+        "nome": "Servidor web",
+        "responsavel": "Demonstração",
+        "setor_localizacao": "Laboratório",
+        "tipo": "SERVICO",
+        "status": "ATIVO",
+        "descricao": "",
+        "vulnerabilidades": [
+            {
+                "descricao": "Falha didática",
+                "categoria": "Exemplo",
+                "severidade": "ALTA",
+                "status": "ABERTA",
+                "cve_id": null,
+                "cvss": null,
+                "consultado_em": null
+            }
+        ],
+        "dependencias": [
+            {
+                "id_origem": 2,
+                "peso": 0.5
+            },
+            {
+                "id_origem": 3,
+                "peso": 0.5
+            }
+        ]
+    },
+    {
+        "id_ativo": 2,
+        "nome": "Banco de dados",
+        "responsavel": "Demonstração",
+        "setor_localizacao": "Laboratório",
+        "tipo": "BANCO_DE_DADOS",
+        "status": "ATIVO",
+        "descricao": "",
+        "vulnerabilidades": [
+            {
+                "descricao": "Falha didática",
+                "categoria": "Exemplo",
+                "severidade": "MEDIA",
+                "status": "ABERTA",
+                "cve_id": null,
+                "cvss": null,
+                "consultado_em": null
+            }
+        ],
+        "dependencias": [
+            {
+                "id_origem": 1,
+                "peso": 0.5
+            },
+            {
+                "id_origem": 3,
+                "peso": 0.5
+            }
+        ]
+    },
+    {
+        "id_ativo": 3,
+        "nome": "Roteador",
+        "responsavel": "Demonstração",
+        "setor_localizacao": "Laboratório",
+        "tipo": "DISPOSITIVO_DE_REDE",
+        "status": "ATIVO",
+        "descricao": "",
+        "vulnerabilidades": [
+            {
+                "descricao": "Falha didática",
+                "categoria": "Exemplo",
+                "severidade": "BAIXA",
+                "status": "ABERTA",
+                "cve_id": null,
+                "cvss": null,
+                "consultado_em": null
+            }
+        ],
+        "dependencias": [
+            {
+                "id_origem": 1,
+                "peso": 0.5
+            },
+            {
+                "id_origem": 2,
+                "peso": 0.5
+            }
+        ]
+    }
+]

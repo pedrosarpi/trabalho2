@@ -155,7 +155,8 @@ def test_questionario():
 def preparar_menu(tmp_path):
     inventario = Inventario(ArmazenamentoJSON(str(tmp_path / 'dados.json')))
     inventario.adicionar(novo_equipamento())
-    return MenuVulnerabilidades(inventario), inventario
+    # INJEÇÃO DA STRING NO MENU DE TESTE
+    return MenuVulnerabilidades(inventario, 'teste'), inventario
 
 
 def test_menu_importacao_com_recarga(tmp_path):

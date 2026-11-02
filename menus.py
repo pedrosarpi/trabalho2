@@ -6,26 +6,63 @@ ação certa. Cada menu concreto só diz QUAIS são as suas opções.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import math
+import sys
 
 from consulta_cve import ClienteNVD, ErroConsultaCVE
+from autenticacao import registrar_usuario, autenticar_usuario, alterar_login, alterar_senha_usuario, deletar_usuario
 from interface_cvss import ler_avaliacao, mostrar_avaliacao
 from seguranca import validar_cve
 from dados import ErroArmazenamento
 from equipamentos import ID_MAXIMO, Equipamento
 from modelos import SeveridadeVulnerabilidade, StatusAtivo, StatusTratamento, TipoAtivo, Vulnerabilidade
+from riscos import ErroAnaliseRisco
 from utilidades import (AZUL, RESET, cabecalho, confirmar, escolher_enum, ler_inteiro, ler_texto,
                         mensagem_aviso, mensagem_erro, mensagem_sucesso)
+
+def exibir_tela_login() -> str | None:
+    while True:
+        cabecalho(f'{AZUL}TELA DE ACESSO{RESET}')
+        print("1 - Fazer Login\n2 - Cadastrar Novo Usuário\n0 - Sair")
+        opcao = ler_inteiro("\nOpção: ", minimo=0, maximo=2)
+
+        if opcao == 0:
+            print("Saindo do programa...")
+            return None # Alterado para retornar None
+        elif opcao == 1:
+            usuario = ler_texto("Usuário: ")
+            senha = ler_texto("Senha: ")
+            if autenticar_usuario(usuario, senha):
+                return usuario # Alterado para retornar o nome do usuário
+            mensagem_erro("Usuário ou senha inválidos.")
+        elif opcao == 2:
+            usuario = ler_texto("Novo usuário: ")
+            while True:
+                senha = ler_texto("Nova senha (mínimo de 6 caracteres): ")
+                if len(senha) < 6:
+                    mensagem_aviso("A senha deve ter pelo menos 6 caracteres.")
+                    continue
+                confirmacao = ler_texto("Confirme a senha: ")
+                if senha != confirmacao:
+                    mensagem_erro("As senhas não coincidem. Tente novamente.")
+                    continue
+                break
+            if registrar_usuario(usuario, senha):
+                mensagem_sucesso("Usuário cadastrado com sucesso!")
+            else:
+                mensagem_erro("O usuário já existe.")
 
 
 class Menu(ABC):
     titulo = ''
 
-    def __init__(self, inventario):
+    def __init__(self, inventario, usuario_logado: str):
         self.inventario = inventario
+        self.usuario_logado = usuario_logado
 
     @abstractmethod
     def opcoes(self) -> dict:
-        """Devolve {número: (rótulo, ação)}. Ação None significa sair do menu."""
+        """Devolve {número: (rótulo, ação)}."""
 
     def exibir_titulo(self) -> None:
         cabecalho(f'{AZUL}{self.titulo}{RESET}')
@@ -60,6 +97,7 @@ class Menu(ABC):
         return True
 
     def _selecionar_ativo(self, mensagem: str) -> Equipamento | None:
+        # ... (Mantem original)
         ativos = self.inventario.listar()
         if not ativos:
             mensagem_aviso('Nenhum ativo cadastrado.')
@@ -74,6 +112,7 @@ class Menu(ABC):
         return ativos[opcao - 1]
 
     def _selecionar_vulnerabilidade(self, ativo: Equipamento, mensagem: str) -> Vulnerabilidade | None:
+        # ... (Mantem original)
         vulnerabilidades = ativo.vulnerabilidades
         if not vulnerabilidades:
             mensagem_aviso('Esse ativo não possui vulnerabilidades cadastradas.')
@@ -87,17 +126,22 @@ class Menu(ABC):
         return vulnerabilidades[opcao - 1]
 
     def _ler_vulnerabilidade(self, ativo: Equipamento) -> Vulnerabilidade:
-        # Polimorfismo em ação: cada tipo de ativo sugere categorias diferentes.
         print(f'\nSugestões de categoria para {ativo.tipo.name}: {", ".join(ativo.categorias_sugeridas)}')
         descricao = ler_texto('Digite a descrição da vulnerabilidade: ')
         categoria = ler_texto('Digite a categoria ou tipo da vulnerabilidade: ')
         severidade = escolher_enum('Selecione a severidade:', SeveridadeVulnerabilidade)
         status = escolher_enum('Selecione o status do tratamento:', StatusTratamento)
-        return Vulnerabilidade(descricao, categoria, severidade, status)
+        # ADICIONADO modificado_por
+        return Vulnerabilidade(descricao, categoria, severidade, status, 
+                               adicionado_por=self.usuario_logado, 
+                               ultima_modificacao_por=self.usuario_logado)
 
 
 class MenuPrincipal(Menu):
     titulo = 'Sistema de Gerenciamento de Ativos e Vulnerabilidades'
+
+    def exibir_titulo(self) -> None:
+        cabecalho(f'{AZUL}{self.titulo} - Logado como: {self.usuario_logado}{RESET}')
 
     def opcoes(self) -> dict:
         return {
@@ -107,11 +151,40 @@ class MenuPrincipal(Menu):
             4: ('Atualizar ativo', self.atualizar_ativo),
             5: ('Remover ativo', self.remover_ativo),
             6: ('Gerenciar vulnerabilidades', self.gerenciar_vulnerabilidades),
-            7: ('Sair', None),
+            7: ('Análise de risco e dependências', self.gerenciar_riscos),
+            8: ('Gerenciar usuário', self.gerenciar_usuario), # NOVA OPÇÃO
+            9: ('Sair', None),
         }
 
     def ao_sair(self) -> None:
         mensagem_sucesso('Espero te ver novamente!')
+
+    def gerenciar_usuario(self) -> None:
+        print("\n--- GERENCIAR USUÁRIO ---")
+        print("1 - Alterar Login\n2 - Alterar Senha\n3 - Excluir Conta\n0 - Voltar")
+        opcao = ler_inteiro("\nOpção: ", minimo=0, maximo=3)
+
+        if opcao == 1:
+            novo_login = ler_texto("Digite o novo nome de usuário: ")
+            if confirmar(f"Deseja salvar o login como '{novo_login}'?"):
+                if alterar_login(self.usuario_logado, novo_login):
+                    self.inventario.atualizar_nome_usuario_historico(self.usuario_logado, novo_login)
+                    self.usuario_logado = novo_login
+                    mensagem_sucesso(f"Login atualizado para '{novo_login}'.")
+                else:
+                    mensagem_erro("Esse nome de usuário já está em uso.")
+                    
+        elif opcao == 2:
+            nova_senha = ler_texto("Nova senha: ")
+            if confirmar("Confirmar alteração de senha?"):
+                alterar_senha_usuario(self.usuario_logado, nova_senha)
+                mensagem_sucesso("Senha atualizada com sucesso.")
+                
+        elif opcao == 3:
+            if confirmar("ATENÇÃO: Deseja realmente excluir sua conta?"):
+                deletar_usuario(self.usuario_logado)
+                mensagem_sucesso("Conta excluída. Encerrando o sistema...")
+                sys.exit(0)
 
     def cadastrar_ativo(self) -> None:
         id_ativo = ler_inteiro(
@@ -131,10 +204,11 @@ class MenuPrincipal(Menu):
         status = escolher_enum('Selecione o status do ativo:', StatusAtivo)
         descricao = ler_texto('Digite a descrição do ativo (opcional): ', obrigatorio=False)
 
-        # A fábrica devolve um objeto da subclasse correspondente ao tipo escolhido.
+        # ADICIONADO modificado_por
         ativo = Equipamento.criar(
             tipo, id_ativo=id_ativo, nome=nome, responsavel=responsavel,
-            setor_localizacao=setor, status=status, descricao=descricao)
+            setor_localizacao=setor, status=status, descricao=descricao, 
+            adicionado_por=self.usuario_logado, ultima_modificacao_por=self.usuario_logado)
 
         pergunta = 'Deseja cadastrar uma vulnerabilidade para este ativo agora?'
         while confirmar(pergunta):
@@ -143,7 +217,7 @@ class MenuPrincipal(Menu):
 
         self.inventario.adicionar(ativo)
         if self._salvar():
-            mensagem_sucesso(f'Ativo {nome} cadastrado com sucesso.')
+            mensagem_sucesso(f'Ativo {nome} cadastrado com sucesso por {self.usuario_logado}.')
 
     def listar_ativos(self) -> None:
         ativos = self.inventario.listar()
@@ -182,13 +256,14 @@ class MenuPrincipal(Menu):
         if confirmar(f'Alterar status ({ativo.status.name})?'):
             novo_status = escolher_enum('Selecione o novo status:', StatusAtivo)
 
+        # ADICIONADO modificado_por
         ativo.atualizar(nome=novo_nome, responsavel=novo_responsavel, setor_localizacao=novo_setor,
-                        descricao=nova_descricao, status=novo_status)
+                        descricao=nova_descricao, status=novo_status, 
+                        ultima_modificacao_por=self.usuario_logado)
         if novo_tipo is not None and novo_tipo != ativo.tipo:
-            # Trocar o tipo = criar um objeto da outra subclasse e colocá-lo no lugar do antigo.
             self.inventario.substituir(ativo.converter_para(novo_tipo))
         if self._salvar():
-            mensagem_sucesso('Ativo atualizado com sucesso.')
+            mensagem_sucesso(f'Ativo atualizado com sucesso por {self.usuario_logado}.')
 
     def _ler_novo_nome(self, ativo: Equipamento) -> str | None:
         while True:
@@ -204,7 +279,7 @@ class MenuPrincipal(Menu):
         ativo = self._selecionar_ativo('Selecione o ativo para remover:')
         if ativo is None:
             return
-        if not confirmar(f'Remover {ativo.nome} e suas vulnerabilidades?'):
+        if not confirmar(f'Remover {ativo.nome}, suas vulnerabilidades e as dependências ligadas a ele?'):
             mensagem_aviso('Remoção cancelada.')
             return
         self.inventario.remover(ativo.id_ativo)
@@ -212,7 +287,12 @@ class MenuPrincipal(Menu):
             mensagem_sucesso(f'Ativo {ativo.nome} e suas vulnerabilidades foram removidos.')
 
     def gerenciar_vulnerabilidades(self) -> None:
-        MenuVulnerabilidades(self.inventario).executar()
+        # ATENÇÃO: passa o usuario para o submenu
+        MenuVulnerabilidades(self.inventario, self.usuario_logado).executar()
+
+    def gerenciar_riscos(self) -> None:
+         # ATENÇÃO: passa o usuario para o submenu
+        MenuRiscos(self.inventario, self.usuario_logado).executar()
 
 
 class MenuVulnerabilidades(Menu):
@@ -271,7 +351,7 @@ class MenuVulnerabilidades(Menu):
         vulnerabilidade = self._selecionar_vulnerabilidade(ativo, 'Digite o número da vulnerabilidade: ')
         if vulnerabilidade is None:
             return
-        vulnerabilidade.alterar_status(escolher_enum('Selecione o novo status:', StatusTratamento))
+        vulnerabilidade.alterar_status(escolher_enum('Selecione o novo status:', StatusTratamento), modificado_por=self.usuario_logado)
         if self._salvar():
             mensagem_sucesso('Status atualizado com sucesso.')
 
@@ -362,5 +442,150 @@ class MenuVulnerabilidades(Menu):
                 return
         vulnerabilidade.cvss = avaliacao
         vulnerabilidade.cve_id = cve_id
+        vulnerabilidade.ultima_modificacao_por = self.usuario_logado # Atualiza a autoria
         if self._salvar():
             mensagem_sucesso('CVSS aplicado; severidade atualizada automaticamente.')
+
+
+class MenuRiscos(Menu):
+    titulo = 'Análise de Risco e Dependências'
+
+    def opcoes(self) -> dict:
+        return {
+            1: ('Cadastrar ou alterar dependência', self.definir_dependencia),
+            2: ('Listar dependências', self.listar_dependencias),
+            3: ('Remover dependência', self.remover_dependencia),
+            4: ('Consultar risco próprio e efetivo de todos os ativos', self.consultar_riscos),
+            5: ('Exibir matrizes e diagnóstico do cálculo', self.exibir_modelo),
+            6: ('Voltar', None),
+        }
+
+    def definir_dependencia(self) -> None:
+        if len(self.inventario) < 2:
+            mensagem_aviso('Cadastre pelo menos dois ativos para definir dependências.')
+            return
+        destino = self._selecionar_ativo('Qual ativo DEPENDE de outro e RECEBERÁ parte do risco?')
+        if destino is None:
+            return
+        origem = self._selecionar_ativo(f'De qual ativo {destino.nome} depende? (ORIGEM do risco)')
+        if origem is None:
+            return
+        if origem.id_ativo == destino.id_ativo:
+            mensagem_erro('Um ativo não pode depender de si mesmo (Aii deve ser zero).')
+            return
+        print(f'{destino.nome} receberá uma fração do risco efetivo de {origem.nome}.')
+        print('Exemplo: 0,25 significa 25%. A soma dos pesos de cada ativo deve ser menor que 1.')
+        while True:
+            texto = ler_texto('Peso de 0 até menos de 1 (Enter cancela): ', obrigatorio=False)
+            if not texto:
+                return
+            try:
+                peso = float(texto.replace(',', '.'))
+                if not math.isfinite(peso) or not 0 <= peso < 1:
+                    raise ValueError()
+                break
+            except ValueError:
+                mensagem_erro('Digite um número finito entre 0 (inclusive) e 1 (exclusive).')
+        try:
+            self.inventario.definir_dependencia(destino.id_ativo, origem.id_ativo, peso)
+        except ValueError as erro:
+            mensagem_erro(str(erro))
+            return
+        if self._salvar():
+            mensagem_sucesso(f'{destino.nome} depende de {origem.nome}: peso {peso:.6g}.')
+
+    def listar_dependencias(self) -> None:
+        encontrou = False
+        for destino in self.inventario.listar():
+            for dependencia in destino.dependencias:
+                origem = self.inventario.obter(dependencia.id_origem)
+                print(f'{destino.id_formatado} — {destino.nome} depende de '
+                      f'{origem.id_formatado} — {origem.nome}: '
+                      f'recebe {dependencia.peso:.2%} do risco efetivo da origem.')
+                encontrou = True
+        if not encontrou:
+            mensagem_aviso('Nenhuma dependência cadastrada. Nesse caso, o risco efetivo é igual ao próprio.')
+
+    def remover_dependencia(self) -> None:
+        destino = self._selecionar_ativo('Selecione o ativo que recebe o risco:')
+        if destino is None:
+            return
+        dependencias = destino.dependencias
+        if not dependencias:
+            mensagem_aviso('Este ativo não possui dependências.')
+            return
+        for indice, dependencia in enumerate(dependencias, 1):
+            origem = self.inventario.obter(dependencia.id_origem)
+            print(f'{indice} - {origem.nome} ({origem.id_formatado}), peso {dependencia.peso:.6g}')
+        opcao = ler_inteiro('Número da dependência (0 cancela): ', minimo=0, maximo=len(dependencias))
+        if opcao == 0:
+            return
+        dependencia = dependencias[opcao - 1]
+        if not confirmar('Remover essa dependência?'):
+            return
+        self.inventario.remover_dependencia(destino.id_ativo, dependencia.id_origem)
+        if self._salvar():
+            mensagem_sucesso('Dependência removida. O risco será recalculado na próxima consulta.')
+
+    def _obter_resultado(self):
+        try:
+            return self.inventario.calcular_riscos()
+        except ErroAnaliseRisco as erro:
+            mensagem_erro(str(erro))
+            return None
+
+    def consultar_riscos(self) -> None:
+        resultado = self._obter_resultado()
+        if resultado is not None:
+            self._mostrar_resultado(resultado)
+
+    def _mostrar_resultado(self, resultado) -> None:
+        print('\nRisco próprio b = M·v | Risco efetivo: (I - A)·x = b')
+        print('Modelo do enunciado: todos os registros entram, inclusive os marcados como corrigidos.')
+        print('São índices acumulados de risco; podem ultrapassar 10 e não são probabilidades.\n')
+        print(f'{"ID":<8} {"Ativo":<26} {"Próprio":>12} {"Herdado":>12} {"Efetivo":>14}')
+        for i, ativo in enumerate(resultado.modelo.equipamentos):
+            proprio = resultado.modelo.b[i]
+            if resultado.x is None:
+                herdado, efetivo = '—', 'indisponível'
+            else:
+                herdado = f'{resultado.x[i] - proprio:.4f}'
+                efetivo = f'{resultado.x[i]:.4f}'
+            print(f'{ativo.id_formatado:<8} {ativo.nome[:26]:<26} '
+                  f'{proprio:>12.4f} {herdado:>12} {efetivo:>14}')
+        print(f'\nPosto de I - A: {resultado.posto}/{len(resultado.modelo.equipamentos)}')
+        print(f'Número de condição: {resultado.condicao:.6g}')
+        print(f'Determinante (apenas diagnóstico): {resultado.determinante:.6g}')
+        if resultado.residuo_relativo is not None:
+            print(f'Resíduo relativo da solução: {resultado.residuo_relativo:.3e}')
+        for aviso in resultado.avisos:
+            mensagem_aviso(aviso)
+        if resultado.impedimento:
+            mensagem_erro(resultado.impedimento)
+        else:
+            print('Invertibilidade verificada e sistema resolvido diretamente.')
+
+    def exibir_modelo(self) -> None:
+        resultado = self._obter_resultado()
+        if resultado is None:
+            return
+        modelo = resultado.modelo
+        print('\nOrdem das linhas de M e das linhas/colunas de A:')
+        for i, ativo in enumerate(modelo.equipamentos, 1):
+            print(f'{i}: {ativo.id_formatado} — {ativo.nome}')
+        print('\nColunas de M e entradas de v (um registro de vulnerabilidade por coluna):')
+        for j, coluna in enumerate(modelo.colunas, 1):
+            print(f'{j}: {coluna.rotulo} | {coluna.descricao} | '
+                  f'{coluna.origem_severidade} | peso {modelo.v[j - 1]:.6g}')
+        print(f'\nM ({modelo.M.shape[0]} x {modelo.M.shape[1]}):')
+        for linha in modelo.M:
+            print('  [' + ', '.join(str(int(valor)) for valor in linha) + ']')
+        print('\nv = [' + ', '.join(f'{valor:.6g}' for valor in modelo.v) + ']')
+        for nome, matriz in [('A (linha recebe risco da coluna)', modelo.A), ('I - A', modelo.sistema)]:
+            print(f'\n{nome}:')
+            for linha in matriz:
+                print('  [' + ', '.join(f'{valor:.6g}' for valor in linha) + ']')
+        print('\nb = [' + ', '.join(f'{valor:.6g}' for valor in modelo.b) + ']')
+        if resultado.x is not None:
+            print('x = [' + ', '.join(f'{valor:.6g}' for valor in resultado.x) + ']')
+        self._mostrar_resultado(resultado)

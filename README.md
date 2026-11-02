@@ -1,12 +1,38 @@
 # Sistema de gerenciamento de ativos e vulnerabilidades
 
 Aplicação de terminal em Python com persistência JSON, consulta de CVEs na NVD
-(API 2.0) e cálculo **CVSS Base**. Mantém as funcionalidades anteriores de
+(API 2.0), cálculo **CVSS Base** e **risco efetivo por álgebra linear** (requisito 4). Mantém as funcionalidades anteriores de
 cadastro, busca, atualização e remoção de ativos e vulnerabilidades.
+
+## Novidade: risco efetivo
+
+No menu principal, escolha **7 — Análise de risco e dependências**:
+
+1. Cadastre ou altere dependências (quem recebe o risco, origem e peso).
+2. Liste as relações cadastradas.
+3. Remova uma relação.
+4. Consulte o risco próprio, herdado e efetivo de todos os equipamentos.
+5. Exiba as matrizes M, v, A, I − A e o diagnóstico numérico.
+6. Volte ao menu principal.
+
+O menu de vulnerabilidades mantém **6 = consultar CVE**, **7 = calcular CVSS**
+e **8 = voltar**. No menu principal, **7 = análise de risco**,
+**8 = gerenciar usuário** e **9 = sair** (última opção).
+
+Veja [RISCO_EFETIVO.md](RISCO_EFETIVO.md) para o modelo matemático, escolhas de
+implementação, exemplo resolvido à mão e roteiro de apresentação.
 
 ## Instalação e execução
 
-Requer Python 3.11 ou superior. Na pasta do projeto:
+Requer Python 3.11 ou superior. No Fedora, se necessário, instale o pip com
+`sudo dnf install python3-pip`. Na pasta do projeto, prepare o ambiente:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Instale também as dependências atualizadas (esta versão acrescenta NumPy):
 
 ```bash
 python -m pip install -r requirements.txt
@@ -17,14 +43,38 @@ Recomenda-se instalar em um ambiente virtual (`python -m venv .venv`).
 Ativação no Windows: `.venv\Scripts\activate`; Linux/macOS: `source .venv/bin/activate`.
 
 A instalação das dependências precisa de internet. Depois de instaladas,
-o cadastro, a leitura dos dados e a calculadora funcionam sem conexão.
+o cadastro, a leitura dos dados, a calculadora e a análise de risco funcionam sem conexão.
 Apenas a consulta à NVD requer acesso à internet.
+
+## Cadastro, login e gerenciamento de usuário
+
+Ao iniciar, a aplicação exibe a tela de acesso. É possível fazer login, cadastrar
+um novo usuário ou sair. O cadastro exige usuário, senha com pelo menos seis
+caracteres e confirmação da senha. Se o usuário já existir ou as senhas não
+coincidirem, a aplicação informa o problema e permite tentar novamente.
+
+Depois do login, o nome do usuário aparece no menu principal. Em **8 — Gerenciar
+usuário**, é possível:
+
+- **Alterar login:** informar um novo nome e confirmar a alteração. Um login já
+  cadastrado é recusado. O novo nome também substitui o antigo nos campos de
+  autoria dos ativos e das vulnerabilidades do inventário.
+- **Alterar senha:** informar e confirmar a alteração. A senha nova passa a ser
+  usada no próximo login.
+- **Excluir conta:** confirmar a exclusão; a aplicação remove a conta e encerra.
+- **Voltar:** retornar ao menu principal sem alterar a conta.
+
+As contas ficam no arquivo `usuarios.json`, no diretório de execução, separado
+do inventário de ativos. As senhas são armazenadas como hashes SHA-256, não em
+texto simples. Esse mecanismo é básico e não substitui armazenamento de senhas
+com derivação específica e salt para uso em produção; proteja o arquivo e o
+ambiente onde a aplicação é executada.
 
 ## Consultar e cadastrar um CVE
 
 1. Cadastre o ativo, se necessário.
-2. No menu principal, escolha **6 — Gerenciar vulnerabilidades**.
-3. Escolha **7 — Consultar CVE na NVD e cadastrar**.
+2. Faça login e, no menu principal, escolha **6 — Gerenciar vulnerabilidades**.
+3. Escolha **6 — Consultar CVE na NVD e cadastrar**.
 4. Digite um identificador, por exemplo `CVE-2021-44228`.
 5. Leia a descrição, o status público do registro, as avaliações e o link da NVD.
 6. Confira se o produto, a versão e as condições do seu ativo são afetados.
@@ -48,7 +98,7 @@ métricas além das Base não são importados nesta versão. CVSS 2.0 não é su
 
 ## Calcular CVSS localmente
 
-Em **Gerenciar vulnerabilidades**, escolha **8 — Calcular CVSS e aplicar a uma
+Em **Gerenciar vulnerabilidades**, escolha **7 — Calcular CVSS e aplicar a uma
 vulnerabilidade**. Há duas formas:
 
 - **Questionário CVSS 3.1:** responda às oito métricas Base. As respostas geram
@@ -150,7 +200,9 @@ Os registros antigos continuam sendo lidos. Campos novos são opcionais:
 
 Esse objeto fica dentro da lista de vulnerabilidades de um ativo; não substitui
 o formato geral do inventário. Na leitura, versão e nota são conferidas contra
-o vetor. As opções antigas do menu conservaram sua numeração.
+o vetor. As opções existentes de ativos e vulnerabilidades conservaram sua
+numeração; o gerenciamento de usuário ocupa a opção 8 do menu principal, e
+**Sair** agora é a opção 9.
 
 ## Organização do código
 
@@ -161,7 +213,12 @@ o vetor. As opções antigas do menu conservaram sua numeração.
 | `interface_cvss.py` | Questionário 3.1, entrada de vetor e exibição da avaliação |
 | `modelos.py` | Vulnerabilidade, associação ao CVE e severidade derivada da avaliação |
 | `menus.py` | Consulta, escolha da avaliação, cadastro e aplicação do cálculo |
+| `autenticacao.py` | Cadastro, autenticação e gerenciamento das contas locais |
 | `test_cve_cvss.py` | Testes da integração, cálculo, persistência e falhas |
+| `test_sistema.py` | Testes do sistema, persistência, menus e operações de ativos |
+| `equipamentos.py` | Hierarquia de ativos e objetos Dependencia |
+| `riscos.py` | Montagem de M, v e A; diagnóstico e solução do sistema linear |
+| `test_riscos.py` | Casos manuais, estabilidade, dependências, persistência e menus |
 
 O cálculo matemático é delegado à biblioteca `cvss`, evitando implementar
 manualmente as fórmulas, arredondamentos e tabelas de CVSS 4.0.
@@ -178,6 +235,48 @@ referência, faixas, entradas inválidas, múltiplas fontes, notas ausentes ou
 divergentes, CVEs rejeitados, timeout, HTTP 403/429/500, leitura de dados antigos,
 recarga do JSON e fluxos do menu. Não dependem da disponibilidade da NVD.
 
+## Docker
+
+O `Dockerfile` instala todas as dependências declaradas, inclusive NumPy. O
+`compose.yaml` mantém a entrada interativa aberta e os dados em um volume.
+
+```bash
+docker compose up -d --build
+docker compose attach inventario
+```
+
+Se o menu não reaparecer ao conectar, pressione Enter. Para se desconectar e
+manter o programa em execução, use **Ctrl+P e depois Ctrl+Q**, sem escolher Sair.
+Para parar o serviço, use `docker compose down`. O volume é preservado.
+Com `restart: unless-stopped`, sair pelo menu pode reiniciar o serviço; use
+`docker compose down` quando a intenção for encerrá-lo.
+
+A base do container começa vazia e é independente do JSON local. Para usar uma
+base existente, com o serviço parado (antes do primeiro `up`, ou após `stop`):
+
+```bash
+docker compose run --rm -T inventario python -c "from pathlib import Path; import sys; Path('/dados/vulnerabilidades.json').write_bytes(sys.stdin.buffer.read())" < vulnerabilidades.json
+docker compose up -d
+```
+
+Esse comando substitui a base do volume. Use-o somente na inicialização ou
+após fazer backup da base anterior. Não execute duas instâncias do programa
+escrevendo simultaneamente no mesmo JSON.
+
+Verifique o tempo contínuo de execução com `docker compose ps` e:
+
+```bash
+docker inspect --format '{{.State.StartedAt}} | reinícios={{.RestartCount}}' "$(docker compose ps -q inventario)"
+```
+
+O requisito de **24 horas** precisa ser demonstrado no servidor do docente.
+Os arquivos Docker estão preparados, mas esta entrega não comprova esse período.
+Docker não estava disponível no ambiente de edição; a construção da imagem e
+os testes dentro dela estão configurados no CI e devem ser confirmados no GitHub.
+
+O workflow executa os testes em pushes de qualquer branch e em pull requests
+para main. Isso permite validar esta versão antes de fazer merge.
+
 ## Referências
 
 - NVD API: https://nvd.nist.gov/developers/vulnerabilities
@@ -186,3 +285,7 @@ recarga do JSON e fluxos do menu. Não dependem da disponibilidade da NVD.
 - CVSS 4.0: https://www.first.org/cvss/v4.0/specification-document
 - Biblioteca e exemplos: https://pypi.org/project/cvss/3.6/
 - Identificadores CVE: https://www.cve.org/
+
+- NumPy solve: https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html
+- NumPy matrix_rank: https://numpy.org/doc/stable/reference/generated/numpy.linalg.matrix_rank.html
+- NumPy cond: https://numpy.org/doc/stable/reference/generated/numpy.linalg.cond.html

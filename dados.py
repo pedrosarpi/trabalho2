@@ -9,7 +9,7 @@ import os
 import shutil
 from datetime import datetime
 
-from equipamentos import Equipamento
+from equipamentos import Equipamento, validar_referencias
 
 
 class ErroArmazenamento(Exception):
@@ -45,9 +45,17 @@ class ArmazenamentoJSON:
                     f'Registro {posicao} do arquivo de dados repete o identificador {equipamento.id_formatado}.')
             ids_vistos.add(equipamento.id_ativo)
             equipamentos.append(equipamento)
+        try:
+            validar_referencias(equipamentos)
+        except ValueError as erro:
+            raise ErroArmazenamento(f'Dependências inválidas: {erro}') from erro
         return equipamentos
 
     def salvar(self, equipamentos: list[Equipamento]) -> None:
+        try:
+            validar_referencias(equipamentos)
+        except ValueError as erro:
+            raise ErroArmazenamento(f'Dependências inválidas: {erro}') from erro
         dados = [equipamento.to_dict() for equipamento in equipamentos]
         temporario = self.caminho + '.tmp'
         try:
