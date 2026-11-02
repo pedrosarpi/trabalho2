@@ -248,17 +248,17 @@ class TestMenus(unittest.TestCase):
 
     def test_vulnerabilidades_ciclo_completo(self):
         self.inventario.adicionar(novo_equipamento())
-        saida = self.executar(MenuVulnerabilidades, ['3', '1', '6'])
+        saida = self.executar(MenuVulnerabilidades, ['3', '1', '8'])
         self.assertIn('sem vulnerabilidades registradas', saida)
-        self.executar(MenuVulnerabilidades, ['1', '1', 'Patch pendente', 'Atualização', '2', '2', '6'])
+        self.executar(MenuVulnerabilidades, ['1', '1', 'Patch pendente', 'Atualização', '2', '2', '8'])
         ativo = self.inventario.obter(1)
         self.assertEqual(ativo.vulnerabilidades[0].status, StatusTratamento.EM_TRATAMENTO)
-        saida = self.executar(MenuVulnerabilidades, ['3', '1', '6'])
+        saida = self.executar(MenuVulnerabilidades, ['3', '1', '8'])
         self.assertIn('Patch pendente', saida)
-        self.executar(MenuVulnerabilidades, ['4', '1', '1', '3', '6'])
+        self.executar(MenuVulnerabilidades, ['4', '1', '1', '3', '8'])
         self.assertEqual(ativo.vulnerabilidades[0].status, StatusTratamento.CORRIGIDA)
         self.assertEqual(self.arquivo()[0]['vulnerabilidades'][0]['status'], 'CORRIGIDA')
-        self.executar(MenuVulnerabilidades, ['5', '1', '1', '6'])
+        self.executar(MenuVulnerabilidades, ['5', '1', '1', '8'])
         self.assertEqual(self.arquivo()[0]['vulnerabilidades'], [])
 
 
