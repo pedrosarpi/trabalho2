@@ -1,291 +1,444 @@
-# Sistema de gerenciamento de ativos e vulnerabilidades
+# Atlas — Gestão de ativos, vulnerabilidades e risco
 
-Aplicação de terminal em Python com persistência JSON, consulta de CVEs na NVD
-(API 2.0), cálculo **CVSS Base** e **risco efetivo por álgebra linear** (requisito 4). Mantém as funcionalidades anteriores de
-cadastro, busca, atualização e remoção de ativos e vulnerabilidades.
+Aplicação em Python para cadastrar ativos, acompanhar vulnerabilidades e analisar
+como o risco se propaga entre equipamentos dependentes. Oferece interface web
+responsiva e interface de terminal, persistência em JSON, consulta de CVEs na NVD,
+cálculo de CVSS Base e análise de risco efetivo por álgebra linear.
 
-## Novidade: risco efetivo
+Desenvolvido como projeto acadêmico, permite explorar o ciclo completo:
+**cadastrar usuários e ativos → registrar vulnerabilidades → avaliar severidade →
+definir dependências → visualizar o risco**.
 
-No menu principal, escolha **7 — Análise de risco e dependências**:
+## Funcionalidades
 
-1. Cadastre ou altere dependências (quem recebe o risco, origem e peso).
-2. Liste as relações cadastradas.
-3. Remova uma relação.
-4. Consulte o risco próprio, herdado e efetivo de todos os equipamentos.
-5. Exiba as matrizes M, v, A, I − A e o diagnóstico numérico.
-6. Volte ao menu principal.
+| Área | Recursos |
+| --- | --- |
+| Painel | Indicadores, tratamentos pendentes e gráfico de risco próprio e herdado |
+| Ativos | Cadastro, listagem, busca, filtros, edição, exclusão e definição de responsável |
+| Vulnerabilidades | Cadastro manual ou por CVE, edição, filtros e acompanhamento do tratamento |
+| Usuários | Cadastro, autenticação, listagem e gerenciamento da própria conta |
+| CVE | Consulta à NVD API 2.0 e seleção da avaliação associada ao registro |
+| CVSS | Questionário Base 3.1 ou cálculo por vetor Base 3.0, 3.1 ou 4.0 |
+| Dependências | Relações direcionais entre ativos, com pesos de transmissão de risco |
+| Risco efetivo | Risco próprio, herdado e total; matrizes, equações e diagnóstico numérico |
+| Exportação | Download autenticado do inventário em JSON, sem hashes de senha |
 
-O menu de vulnerabilidades mantém **6 = consultar CVE**, **7 = calcular CVSS**
-e **8 = voltar**. No menu principal, **7 = análise de risco**,
-**8 = gerenciar usuário** e **9 = sair** (última opção).
+Depois de instalar as dependências, os cadastros, a calculadora e a análise de
+risco funcionam sem internet. Apenas a consulta à NVD requer conexão.
+A interface utiliza recursos locais, sem fontes, gráficos ou scripts de CDN.
 
-Veja [RISCO_EFETIVO.md](RISCO_EFETIVO.md) para o modelo matemático, escolhas de
-implementação, exemplo resolvido à mão e roteiro de apresentação.
+## Instalação e execução local
 
-## Instalação e execução
+Baixe e extraia o ZIP do repositório ou clone-o com Git. Abra um terminal **na
+pasta que contém este README e o arquivo `requirements.txt`**.
+No VS Code, use **Terminal → Novo Terminal**.
 
-Requer Python 3.11 ou superior. No Fedora, se necessário, instale o pip com
-`sudo dnf install python3-pip`. Na pasta do projeto, prepare o ambiente:
+Requisitos: **Python 3.11 ou superior**, pip e navegador. O CI está configurado
+para Python 3.11 e 3.12, que são as versões de referência.
+A instalação inicial das dependências requer internet.
+
+### Windows — PowerShell
+
+Instale o Python pelo [site oficial](https://www.python.org/downloads/windows/).
+No PowerShell, confira a versão e prepare o ambiente:
+
+```powershell
+py -3 --version
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:SECRET_KEY = & .\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))"
+.\.venv\Scripts\python.exe -m app.web
+```
+
+Abra **http://127.0.0.1:8000** no navegador.
+
+Os comandos usam diretamente o Python do ambiente virtual, dispensando a ativação
+e mudanças na política de execução do PowerShell. Se `py` não estiver disponível,
+mas `python --version` indicar uma versão compatível, substitua `py -3` por
+`python` nos dois primeiros comandos.
+
+Para iniciar novamente em outro terminal, execute as duas últimas linhas:
+defina a chave e inicie a aplicação. Não é necessário reinstalar as dependências
+a cada uso.
+
+### Linux — Fedora, Ubuntu e Debian
+
+Confira a versão com `python3 --version`. Se faltarem pip ou venv, instale os
+pacotes correspondentes à distribuição.
+
+Fedora:
+
+```bash
+sudo dnf install python3 python3-pip
+```
+
+Ubuntu/Debian:
+
+```bash
+sudo apt install python3 python3-pip python3-venv
+```
+
+Depois, na pasta do projeto:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install -r requirements.txt
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+python -m app.web
 ```
 
-Instale também as dependências atualizadas (esta versão acrescenta NumPy):
+Abra **http://127.0.0.1:8000**. Em outro terminal, ative novamente o ambiente,
+defina a chave e execute `python -m app.web`.
+
+### macOS
+
+Com Python 3.11 ou superior instalado, use o mesmo bloco de criação do ambiente
+virtual e execução apresentado para Linux. Os comandos `dnf` e `apt` são
+exclusivos das distribuições Linux indicadas.
+
+### Primeiro acesso e encerramento
+
+1. Abra a aplicação e crie uma conta. Não há senha padrão embutida.
+2. Cadastre um ativo e informe seu responsável; a web permite vinculá-lo a uma conta.
+3. Registre uma vulnerabilidade manualmente ou consulte um CVE.
+4. Avalie a severidade com CVSS e cadastre dependências, quando existirem.
+5. Consulte o painel e a análise de risco.
+
+Para encerrar o servidor local, pressione **Ctrl+C no terminal**.
+O botão **Sair** da interface encerra apenas sua sessão de usuário.
+
+A `SECRET_KEY` precisa ter pelo menos 32 caracteres aleatórios e permanecer
+privada. Nos exemplos, vale para o terminal atual. Gerar outra chave invalida
+sessões anteriores, mas preserva os dados. Para uma implantação permanente,
+mantenha uma chave estável e protegida.
+
+**A execução local não carrega o arquivo .env automaticamente.** Defina as
+variáveis no terminal antes de iniciar. O comando `python -m app.web` usa o
+servidor local do Flask, destinado a desenvolvimento e testes. Para implantação,
+use o fluxo Docker abaixo. O Gunicorn não executa nativamente no Windows;
+pode ser usado em Linux, WSL ou no container Linux.
+
+## Interface de terminal
+
+Após instalar as dependências, execute no Windows:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.main
+```
+
+No Linux/macOS, com o ambiente virtual ativado:
 
 ```bash
-python -m pip install -r requirements.txt
-python main.py
+python -m app.main
 ```
 
-Recomenda-se instalar em um ambiente virtual (`python -m venv .venv`).
-Ativação no Windows: `.venv\Scripts\activate`; Linux/macOS: `source .venv/bin/activate`.
+O terminal não exige `SECRET_KEY`. No menu principal, **6** abre vulnerabilidades,
+**7** abre risco e dependências, **8** gerencia a própria conta e **9** encerra
+o programa. No menu de vulnerabilidades, **6** consulta CVE, **7** calcula CVSS
+e **8** volta.
 
-A instalação das dependências precisa de internet. Depois de instaladas,
-o cadastro, a leitura dos dados, a calculadora e a análise de risco funcionam sem conexão.
-Apenas a consulta à NVD requer acesso à internet.
+## Executar com Docker Compose
 
-## Cadastro, login e gerenciamento de usuário
+Use Docker Engine com Compose v2 no Linux ou Docker Desktop com containers Linux
+no Windows/macOS. O Docker precisa estar em execução. Para o script de
+configuração, basta ter Python instalado; ele não exige as dependências do projeto.
 
-Ao iniciar, a aplicação exibe a tela de acesso. É possível fazer login, cadastrar
-um novo usuário ou sair. O cadastro exige usuário, senha com pelo menos seis
-caracteres e confirmação da senha. Se o usuário já existir ou as senhas não
-coincidirem, a aplicação informa o problema e permite tentar novamente.
+Na pasta do projeto, gere a configuração uma única vez:
 
-Depois do login, o nome do usuário aparece no menu principal. Em **8 — Gerenciar
-usuário**, é possível:
+```bash
+python3 scripts/configurar.py --projeto atlas-local --porta 18080
+```
 
-- **Alterar login:** informar um novo nome e confirmar a alteração. Um login já
-  cadastrado é recusado. O novo nome também substitui o antigo nos campos de
-  autoria dos ativos e das vulnerabilidades do inventário.
-- **Alterar senha:** informar e confirmar a alteração. A senha nova passa a ser
-  usada no próximo login.
-- **Excluir conta:** confirmar a exclusão; a aplicação remove a conta e encerra.
-- **Voltar:** retornar ao menu principal sem alterar a conta.
+No PowerShell, use:
 
-As contas ficam no arquivo `usuarios.json`, no diretório de execução, separado
-do inventário de ativos. As senhas são armazenadas como hashes SHA-256, não em
-texto simples. Esse mecanismo é básico e não substitui armazenamento de senhas
-com derivação específica e salt para uso em produção; proteja o arquivo e o
-ambiente onde a aplicação é executada.
+```powershell
+py -3 scripts/configurar.py --projeto atlas-local --porta 18080
+```
 
-## Consultar e cadastrar um CVE
+O script cria `.env` com chave aleatória e não sobrescreve um arquivo existente.
+Mantenha esse arquivo privado. Em servidor compartilhado, escolha um nome de
+projeto único e uma porta disponível e autorizada.
 
-1. Cadastre o ativo, se necessário.
-2. Faça login e, no menu principal, escolha **6 — Gerenciar vulnerabilidades**.
-3. Escolha **6 — Consultar CVE na NVD e cadastrar**.
-4. Digite um identificador, por exemplo `CVE-2021-44228`.
-5. Leia a descrição, o status público do registro, as avaliações e o link da NVD.
-6. Confira se o produto, a versão e as condições do seu ativo são afetados.
-7. Confirme o cadastro, selecione o ativo e, se houver várias avaliações,
-   escolha a fonte/versão desejada. Informe categoria e status do tratamento.
+Os comandos seguintes são iguais nos dois sistemas:
 
-A consulta não faz varredura, não detecta automaticamente softwares e não
-confirma que o ativo está vulnerável. Envia somente o CVE à NVD, nunca os dados
-do inventário. O status público do CVE é diferente do status de tratamento local.
+```text
+docker compose config --quiet
+docker compose up -d --build --wait --wait-timeout 180
+docker compose ps
+```
 
-O sistema exibe todas as avaliações Base compatíveis encontradas, na ordem
-4.0, 3.1 e 3.0. Não combina notas nem escolhe automaticamente a maior nota.
-Cada avaliação mantém o vetor, a versão e a fonte informada pela NVD, que pode
-ser o NIST ou outra organização. O JSON armazena a avaliação escolhida.
-Uma nova consulta não atualiza registros antigos automaticamente.
+Abra **http://127.0.0.1:18080**.
+O endpoint **http://127.0.0.1:18080/healthz** permite verificar a saúde do serviço.
 
-Registros rejeitados não são importados. Sem nota compatível, o cadastro fica
-**NAO_AVALIADA**, com `cvss: null`, em vez de receber nota zero.
-Notas divergentes do cálculo do vetor são ignoradas com aviso. Vetores contendo
-métricas além das Base não são importados nesta versão. CVSS 2.0 não é suportado.
+| Ação | Comando |
+| --- | --- |
+| Acompanhar logs | `docker compose logs -f` |
+| Parar | `docker compose stop` |
+| Retomar | `docker compose start` |
+| Reconstruir após atualizar o código | `docker compose up -d --build --wait --wait-timeout 180` |
+| Remover containers, preservando o volume | `docker compose down` |
 
-## Calcular CVSS localmente
+**Não use `docker compose down -v` se quiser preservar os dados:** a opção `-v`
+remove o volume. Mantenha o nome do projeto para reutilizar o mesmo volume.
 
-Em **Gerenciar vulnerabilidades**, escolha **7 — Calcular CVSS e aplicar a uma
-vulnerabilidade**. Há duas formas:
+O container usa Gunicorn, usuário sem privilégios e volume persistente para
+inventário e contas. Os JSON locais e o `.env` não são copiados para a imagem.
+Um volume novo começa vazio. A porta é publicada apenas em `127.0.0.1`;
+o acesso a um servidor remoto exige túnel SSH ou uma configuração de publicação
+apropriada. Para exposição pública, configure HTTPS e a infraestrutura de acesso.
 
-- **Questionário CVSS 3.1:** responda às oito métricas Base. As respostas geram
-  um vetor e a biblioteca `cvss==3.6` executa o cálculo padronizado.
-- **Colar vetor:** aceita vetores Base de CVSS 3.0, 3.1 e 4.0.
+A configuração usa **1 worker e 4 threads**. O cache de consultas, o controle de
+intervalo da NVD e o limite de tentativas de login mantêm estado no processo;
+aumentar o número de workers exige adaptar esses controles.
 
-Exemplo didático (não representa, por si só, um CVE específico):
+Consulte o [guia de servidor e monitoramento](docs/SERVIDOR.md) para implantação,
+migração, backup e coleta de evidências. A execução contínua de 24 horas exigida
+no contexto acadêmico precisa ser demonstrada no servidor; o CI não substitui
+essa verificação.
+
+## Consulta de CVEs
+
+CVE identifica uma vulnerabilidade conhecida. Na tela **Consultar CVE**, informe,
+por exemplo, `CVE-2021-44228`, leia os resultados e confira se o produto, a versão
+e as condições do ativo são afetados antes de cadastrá-la.
+
+A consulta envia à NVD somente o identificador CVE, sem os dados do inventário.
+Ela não realiza varredura nem confirma automaticamente que um ativo é vulnerável.
+O status público do CVE é diferente do status de tratamento no inventário.
+
+Quando há várias avaliações Base compatíveis, a aplicação permite escolher a
+fonte e a versão. O cadastro preserva vetor, nota, versão, fonte e data da
+consulta. Uma nova consulta não atualiza automaticamente registros existentes.
+
+- Registros rejeitados não são importados.
+- Sem avaliação compatível, o cadastro fica `NAO_AVALIADA`, com `cvss: null`.
+- CVSS 2.0 e vetores com métricas além das Base não são suportados.
+- O mesmo CVE pode afetar ativos diferentes; sua repetição no mesmo ativo é recusada.
+- Falhas de rede, limites de uso e registros ausentes são apresentados ao usuário.
+
+A chave `NVD_API_KEY` é opcional. Obtenha-a pelas orientações da
+[NVD](https://nvd.nist.gov/developers/start-here), se necessário, e configure-a no
+ambiente ou no `.env` do Compose. Ela é enviada em cabeçalho e não é salva no JSON.
+Não publique a chave. Em caso de limite de uso, aguarde antes de consultar
+novamente; os demais recursos continuam disponíveis.
+
+## Cálculo de CVSS
+
+CVSS expressa a severidade técnica da vulnerabilidade. A calculadora oferece
+questionário **Base 3.1** e aceita vetores **Base 3.0, 3.1 e 4.0**. O cálculo usa
+a biblioteca `cvss` e não depende da NVD.
+
+Exemplo didático:
 
 ```text
 CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
 ```
 
-Resultado esperado: **9.8 — CRITICA**. No questionário, escolha respectivamente
-`1, 1, 1, 1, 1, 3, 3, 3` para obter o mesmo vetor.
+Resultado esperado: **9,8 — CRÍTICA**. O vetor não identifica, por si só, um CVE.
 
-| Métrica 3.1 | Significado |
+| Métrica Base 3.1 | Significado |
 | --- | --- |
-| AV | Vetor de ataque: rede, adjacente, local ou físico |
-| AC | Complexidade e condições fora do controle do atacante |
-| PR | Privilégios necessários antes da exploração |
-| UI | Necessidade de interação de outra pessoa |
-| S | Se o impacto ultrapassa a autoridade de segurança do componente |
+| AV | Vetor de ataque |
+| AC | Complexidade do ataque |
+| PR | Privilégios necessários |
+| UI | Interação do usuário |
+| S | Escopo: impacto além da autoridade de segurança do componente |
 | C | Impacto na confidencialidade |
 | I | Impacto na integridade |
 | A | Impacto na disponibilidade |
 
-A seleção das métricas exige análise técnica da falha. A ferramenta calcula a
-nota das respostas; ela não descobre as respostas sozinha. Consulte a
-especificação para os critérios completos, especialmente a métrica de escopo.
+Escolha as métricas com base na análise técnica da falha. É possível consultar
+o resultado ou aplicá-lo a uma vulnerabilidade cadastrada, atualizando sua
+severidade. A avaliação local registra a fonte **Cálculo local**. Informar um
+CVE nesse fluxo valida sua sintaxe, sem confirmar sua existência online.
 
-É possível apenas visualizar o resultado ou aplicá-lo a uma vulnerabilidade já
-cadastrada. Para uma falha nova sem CVE, use primeiro o cadastro manual (opção 1).
-Ao aplicar uma avaliação, a severidade é atualizada automaticamente. Substituir
-uma avaliação existente exige confirmação e passa a registrar a fonte como
-**Cálculo local**. A data de consulta, quando presente, continua se referindo à
-consulta do CVE, não ao novo cálculo local.
-
-O CVE pode ser informado opcionalmente nesse fluxo. Sua sintaxe é validada,
-mas sua existência não é verificada online. Não é permitido repetir o mesmo CVE
-no mesmo ativo por estes fluxos; o mesmo CVE pode afetar ativos diferentes.
-
-### Escopo da calculadora
-
-Esta entrega calcula **apenas a pontuação Base**, sem métricas temporais,
-ambientais, de ameaça ou suplementares. Vetores com essas métricas são
-recusados explicitamente, sem descartá-las silenciosamente.
-
-| Nota | Classificação |
+| Nota Base | Classificação |
 | --- | --- |
-| 0.0 | NENHUMA |
-| 0.1–3.9 | BAIXA |
-| 4.0–6.9 | MEDIA |
-| 7.0–8.9 | ALTA |
-| 9.0–10.0 | CRITICA |
-| Sem avaliação | NAO_AVALIADA (ou severidade manual preexistente) |
+| 0,0 | NENHUMA |
+| 0,1–3,9 | BAIXA |
+| 4,0–6,9 | MÉDIA |
+| 7,0–8,9 | ALTA |
+| 9,0–10,0 | CRÍTICA |
 
-CVSS mede severidade técnica. A prioridade de correção também depende da
-exposição, importância do ativo e contexto de exploração. Notas de versões
-CVSS diferentes não devem ser tratadas como equivalentes.
+A calculadora aceita somente métricas Base: vetores com métricas temporais,
+ambientais, de ameaça ou suplementares são recusados. A prioridade de correção
+também depende da exposição e do contexto do ativo; a nota isolada não substitui
+essa avaliação.
 
-## Rede e chave da NVD
+## Risco efetivo e dependências
 
-A consulta usa HTTPS e timeout de 15 segundos. Falhas de conexão, respostas
-inválidas, erros HTTP, limites de uso e CVEs ausentes geram mensagens no terminal.
-As demais funções continuam disponíveis. Sem chave, o cliente espera pelo menos
-6 segundos entre suas requisições; com chave, 0,6 segundo. Esse controle é por
-instância do cliente, não global entre computadores/processos. Não há retries
-automáticos nem cache de consultas.
+O modelo soma o risco próprio e o risco recebido de outros ativos:
 
-Uma chave é opcional e pode ser fornecida pela variável de ambiente
-`NVD_API_KEY`. Ela é enviada em cabeçalho e não é salva no JSON. Não coloque
-chaves no código ou no repositório. Em caso de bloqueio ou limite, aguarde antes
-de tentar novamente; os limites e condições do serviço podem mudar.
-
-## Dados e compatibilidade
-
-O arquivo padrão continua sendo `vulnerabilidades.json`, ao lado de `main.py`.
-É possível definir outro caminho com `INVENTARIO_ARQUIVO`. Faça backup de sua
-base antes de substituir uma instalação anterior.
-
-Os registros antigos continuam sendo lidos. Campos novos são opcionais:
-
-```json
-{
-  "descricao": "Exemplo didático de falha",
-  "categoria": "Software",
-  "severidade": "CRITICA",
-  "status": "ABERTA",
-  "cve_id": null,
-  "cvss": {
-    "versao": "3.1",
-    "vetor": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-    "nota": 9.8,
-    "fonte": "Cálculo local"
-  },
-  "consultado_em": null
-}
+```text
+b = Mv
+x = b + Ax
+(I − A)x = b
 ```
 
-Esse objeto fica dentro da lista de vulnerabilidades de um ativo; não substitui
-o formato geral do inventário. Na leitura, versão e nota são conferidas contra
-o vetor. As opções existentes de ativos e vulnerabilidades conservaram sua
-numeração; o gerenciamento de usuário ocupa a opção 8 do menu principal, e
-**Sair** agora é a opção 9.
-
-## Organização do código
-
-| Arquivo | Responsabilidade |
+| Símbolo | Interpretação |
 | --- | --- |
-| `seguranca.py` | Validação de CVE, cálculo e classificação CVSS, serialização da avaliação |
-| `consulta_cve.py` | HTTP, intervalo de requisições, interpretação da resposta NVD |
-| `interface_cvss.py` | Questionário 3.1, entrada de vetor e exibição da avaliação |
-| `modelos.py` | Vulnerabilidade, associação ao CVE e severidade derivada da avaliação |
-| `menus.py` | Consulta, escolha da avaliação, cadastro e aplicação do cálculo |
-| `autenticacao.py` | Cadastro, autenticação e gerenciamento das contas locais |
-| `test_cve_cvss.py` | Testes da integração, cálculo, persistência e falhas |
-| `test_sistema.py` | Testes do sistema, persistência, menus e operações de ativos |
-| `equipamentos.py` | Hierarquia de ativos e objetos Dependencia |
-| `riscos.py` | Montagem de M, v e A; diagnóstico e solução do sistema linear |
-| `test_riscos.py` | Casos manuais, estabilidade, dependências, persistência e menus |
+| M | Matriz de incidência: relaciona ativos às ocorrências de vulnerabilidade |
+| v | Vetor de severidades |
+| b | Risco próprio de cada ativo |
+| A | Matriz de dependências: A[i,j] transmite risco do ativo j para o ativo i |
+| x | Risco efetivo; o risco herdado é x − b |
 
-O cálculo matemático é delegado à biblioteca `cvss`, evitando implementar
-manualmente as fórmulas, arredondamentos e tabelas de CVSS 4.0.
+A nota Base CVSS tem prioridade. Sem ela, usa-se a escala **local**
+NENHUMA=0, BAIXA=2, MEDIA=5, ALTA=8 e CRITICA=10, que não é uma conversão oficial
+do CVSS. Uma vulnerabilidade não avaliada bloqueia o cálculo em vez de virar zero.
 
-## Testes
+O cadastro exige pesos finitos entre 0 e 1, sem incluir 1, sem autodependência
+e com soma dos pesos recebidos menor que 1. O cálculo verifica posto e
+condicionamento antes de resolver o sistema com `numpy.linalg.solve`, além de
+conferir o resíduo. Sistemas singulares ou numericamente inseguros recebem
+diagnóstico.
+
+**O risco efetivo pode superar 10:** é um índice acumulado, não uma nota CVSS
+nem uma probabilidade. No modelo implementado, todas as vulnerabilidades
+cadastradas entram no cálculo, inclusive as marcadas como corrigidas.
+
+Veja a [explicação matemática e exemplos resolvidos](docs/RISCO_EFETIVO.md).
+A pasta `exemplos/` contém bases para explorar o modelo.
+
+## Contas, dados e configuração
+
+Todos os usuários autenticados colaboram no mesmo inventário. Não há perfis de
+administrador nem separação de ativos por proprietário. Cada pessoa gerencia
+apenas a própria conta; alterações exigem a senha atual.
+
+Responsabilidade operacional e autoria são informações distintas. O responsável
+pode ser vinculado a uma conta, enquanto os registros de criação e alteração
+preservam o histórico. Renomear ou excluir uma conta não exclui ativos e
+vulnerabilidades; os identificadores estáveis evitam atribuir o histórico a
+outra pessoa que reutilize o mesmo login.
+
+Novas senhas usam scrypt com salt. Hashes legados SHA-256 são migrados após login
+válido. A troca de senha invalida sessões anteriores. A interface inclui proteção
+CSRF, escape de HTML, cookies HttpOnly/SameSite e limite de tentativas de login.
+
+### Variáveis de ambiente
+
+| Variável | Uso |
+| --- | --- |
+| `SECRET_KEY` | Chave privada obrigatória para sessões web, com pelo menos 32 caracteres |
+| `INVENTARIO_ARQUIVO` | Caminho alternativo para o JSON de ativos |
+| `USUARIOS_ARQUIVO` | Caminho alternativo para o JSON de contas |
+| `NVD_API_KEY` | Chave opcional para consultas à NVD |
+| `PERMITIR_CADASTRO` | `true` por padrão; `false` fecha novos cadastros |
+| `COOKIE_SEGURO` | `false` para HTTP local; use `true` quando o acesso ocorrer por HTTPS |
+| `COMPOSE_PROJECT_NAME` | Nome do projeto Compose e prefixo de seus recursos |
+| `PORTA_WEB` | Porta publicada pelo Compose; padrão 18080, sem efeito no servidor local |
+
+No Windows, defina variáveis com `$env:NOME = "valor"`; em Linux/macOS, com
+`export NOME="valor"`. Para o Compose, edite o `.env` e execute novamente
+`docker compose up -d` para aplicar mudanças.
+
+### Persistência, backup e atualização
+
+Por padrão, os arquivos são `dados/vulnerabilidades.json` e
+`dados/usuarios.json`. O inventário é uma lista JSON de ativos com suas
+vulnerabilidades e dependências. As contas ficam em arquivo separado.
+
+Por compatibilidade, JSON antigos que ainda existam na raiz têm prioridade sobre
+os arquivos de `dados/`. As variáveis de ambiente têm prioridade sobre ambos.
+Ao migrar uma instalação, pare a aplicação, faça backup dos dois JSON, mova-os
+para `dados/` e retire as cópias antigas da raiz após conferir os dados.
+
+A escrita é atômica. Na web, travas e revisão de formulários protegem contra
+edições concorrentes; uma resposta **409** solicita recarregar dados alterados
+por outra operação. JSON inválido gera erro e não é substituído por base vazia.
+
+Não use o terminal e a web simultaneamente para editar a mesma base.
+Faça backups e restaurações com a aplicação parada. A exportação pela interface
+contém o inventário; ela não substitui o backup das contas.
+
+Para experimentar sem alterar a base principal, configure caminhos diferentes
+com `INVENTARIO_ARQUIVO` e `USUARIOS_ARQUIVO`. Também é possível copiar um arquivo
+de `exemplos/` para o inventário de teste, antes de iniciar a aplicação.
+
+Os JSON de usuários e inventário, ambientes virtuais e segredos estão no
+`.gitignore`. Não publique dados reais nem credenciais; arquivos já rastreados
+pelo Git não deixam de ser rastreados apenas por entrarem nesse arquivo.
+
+## Testes automatizados
+
+No Linux/macOS, com o ambiente virtual ativado:
 
 ```bash
+python -m pip install -r requirements-dev.txt
 python -m pytest -q
-python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+python -m flake8 app tests scripts --count --select=E9,F63,F7,F82 --statistics
 ```
 
-Os testes automáticos simulam a rede, usando cálculos reais. Cobrem vetores de
-referência, faixas, entradas inválidas, múltiplas fontes, notas ausentes ou
-divergentes, CVEs rejeitados, timeout, HTTP 403/429/500, leitura de dados antigos,
-recarga do JSON e fluxos do menu. Não dependem da disponibilidade da NVD.
+No Windows — PowerShell:
 
-## Docker
-
-O `Dockerfile` instala todas as dependências declaradas, inclusive NumPy. O
-`compose.yaml` mantém a entrada interativa aberta e os dados em um volume.
-
-```bash
-docker compose up -d --build
-docker compose attach inventario
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m flake8 app tests scripts --count --select=E9,F63,F7,F82 --statistics
 ```
 
-Se o menu não reaparecer ao conectar, pressione Enter. Para se desconectar e
-manter o programa em execução, use **Ctrl+P e depois Ctrl+Q**, sem escolher Sair.
-Para parar o serviço, use `docker compose down`. O volume é preservado.
-Com `restart: unless-stopped`, sair pelo menu pode reiniciar o serviço; use
-`docker compose down` quando a intenção for encerrá-lo.
+Os testes usam bases temporárias e respostas NVD simuladas; os cálculos de CVSS e
+álgebra linear são reais. Cobrem CRUD, contas, persistência, menus, rotas web,
+tratamento de erros e análise de risco.
 
-A base do container começa vazia e é independente do JSON local. Para usar uma
-base existente, com o serviço parado (antes do primeiro `up`, ou após `stop`):
+O GitHub Actions está configurado para testar Python 3.11 e 3.12 em pushes e
+pull requests. Um job separado constrói o container, testa HTTP e verifica a
+persistência após reinício. Consulte a aba **Actions** para o resultado da versão
+que estiver utilizando.
 
-```bash
-docker compose run --rm -T inventario python -c "from pathlib import Path; import sys; Path('/dados/vulnerabilidades.json').write_bytes(sys.stdin.buffer.read())" < vulnerabilidades.json
-docker compose up -d
-```
+## Organização do projeto
 
-Esse comando substitui a base do volume. Use-o somente na inicialização ou
-após fazer backup da base anterior. Não execute duas instâncias do programa
-escrevendo simultaneamente no mesmo JSON.
+| Caminho | Conteúdo |
+| --- | --- |
+| `app/` | Domínio, persistência, serviços e interfaces web/terminal |
+| `app/templates/` e `app/static/` | HTML, CSS, JavaScript e ícones |
+| `tests/` | Testes automatizados |
+| `docs/` | Guias de uso, implantação, auditoria e modelo matemático |
+| `scripts/` | Configuração, teste HTTP e monitoramento |
+| `exemplos/` | Inventários demonstrativos de risco |
+| `dados/` | Dados locais, fora do versionamento |
+| `Dockerfile` e `compose.yaml` | Construção e execução do serviço |
+| `requirements*.txt` | Dependências de execução e desenvolvimento |
 
-Verifique o tempo contínuo de execução com `docker compose ps` e:
+Os módulos `equipamentos.py` e `modelos.py` representam o domínio;
+`inventario.py`, `dados.py` e `persistencia.py` cuidam do inventário;
+`seguranca.py`, `consulta_cve.py` e `riscos.py` concentram as avaliações.
+`web.py` e `servicos.py` atendem a interface web, enquanto `main.py` e
+`menus.py` atendem o terminal. Todos ficam em `app/`.
 
-```bash
-docker inspect --format '{{.State.StartedAt}} | reinícios={{.RestartCount}}' "$(docker compose ps -q inventario)"
-```
+## Problemas frequentes
 
-O requisito de **24 horas** precisa ser demonstrado no servidor do docente.
-Os arquivos Docker estão preparados, mas esta entrega não comprova esse período.
-Docker não estava disponível no ambiente de edição; a construção da imagem e
-os testes dentro dela estão configurados no CI e devem ser confirmados no GitHub.
+| Problema | Como resolver |
+| --- | --- |
+| `No module named pip` no Fedora | Instale `python3-pip`, crie o ambiente virtual e use seu Python para instalar dependências |
+| `py` não reconhecido no Windows | Confira a instalação; use `python` se apontar para uma versão compatível |
+| Ativação bloqueada no PowerShell | Use diretamente `.\.venv\Scripts\python.exe`, conforme as instruções |
+| `No module named app` | Execute da pasta que contém `app/`, usando `-m app.web` ou `-m app.main` |
+| Erro de `SECRET_KEY` | Defina a variável no mesmo terminal; o modo local não lê `.env` |
+| Porta em uso no Docker | Escolha outra `PORTA_WEB` no `.env` e aplique com `docker compose up -d` |
+| Consulta NVD falha | Confira conexão e identificador; em caso de limite, aguarde |
+| Formulário retorna 409 | Recarregue a página e confira os dados atuais antes de reenviar |
+| Erro de leitura do JSON | Preserve o arquivo, pare a aplicação e confira o conteúdo ou restaure um backup |
+| Dados não aparecem após atualização | Confira os caminhos configurados, JSON antigos na raiz e o volume Compose |
 
-O workflow executa os testes em pushes de qualquer branch e em pull requests
-para main. Isso permite validar esta versão antes de fazer merge.
+## Documentação complementar
+
+- [Roteiro de testes manuais da interface](docs/TESTE_MANUAL.md).
+- [Modelo de risco e exemplos resolvidos](docs/RISCO_EFETIVO.md).
+- [Implantação, backup e monitoramento no servidor](docs/SERVIDOR.md).
+- [Auditoria e evidências da revisão](docs/AUDITORIA.md).
 
 ## Referências
 
-- NVD API: https://nvd.nist.gov/developers/vulnerabilities
-- Recomendações de uso: https://nvd.nist.gov/developers/start-here
-- CVSS 3.1: https://www.first.org/cvss/v3.1/specification-document
-- CVSS 4.0: https://www.first.org/cvss/v4.0/specification-document
-- Biblioteca e exemplos: https://pypi.org/project/cvss/3.6/
-- Identificadores CVE: https://www.cve.org/
+- [CVE — identificação de vulnerabilidades](https://www.cve.org/).
+- [NVD — API de vulnerabilidades](https://nvd.nist.gov/developers/vulnerabilities).
+- [FIRST — especificação CVSS 3.1](https://www.first.org/cvss/v3.1/specification-document).
+- [FIRST — especificação CVSS 4.0](https://www.first.org/cvss/v4.0/specification-document).
+- [Biblioteca Python cvss](https://pypi.org/project/cvss/3.6/).
+- [NumPy — solução de sistemas lineares](https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html).
+- [Python — ambientes virtuais](https://docs.python.org/3/library/venv.html).
+- [Flask — implantação com Gunicorn](https://flask.palletsprojects.com/en/stable/deploying/gunicorn/).
+- [Docker Compose — referência](https://docs.docker.com/reference/compose-file/).
 
-- NumPy solve: https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html
-- NumPy matrix_rank: https://numpy.org/doc/stable/reference/generated/numpy.linalg.matrix_rank.html
-- NumPy cond: https://numpy.org/doc/stable/reference/generated/numpy.linalg.cond.html

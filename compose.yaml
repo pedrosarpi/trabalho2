@@ -1,11 +1,30 @@
 services:
   inventario:
     build: .
-    stdin_open: true
-    tty: true
     init: true
     restart: unless-stopped
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?Execute python3 scripts/configurar.py primeiro}
+      INVENTARIO_ARQUIVO: /dados/vulnerabilidades.json
+      USUARIOS_ARQUIVO: /dados/usuarios.json
+      PERMITIR_CADASTRO: ${PERMITIR_CADASTRO:-true}
+      COOKIE_SEGURO: ${COOKIE_SEGURO:-false}
+      NVD_API_KEY: ${NVD_API_KEY:-}
+    ports:
+      - "127.0.0.1:${PORTA_WEB:-18080}:8000"
     volumes:
       - dados:/dados
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 volumes:
   dados:
