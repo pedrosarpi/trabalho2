@@ -6,6 +6,7 @@ ação certa. Cada menu concreto só diz QUAIS são as suas opções.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import math
 
 from consulta_cve import ClienteNVD, ErroConsultaCVE
 from interface_cvss import ler_avaliacao, mostrar_avaliacao
@@ -13,6 +14,7 @@ from seguranca import validar_cve
 from dados import ErroArmazenamento
 from equipamentos import ID_MAXIMO, Equipamento
 from modelos import SeveridadeVulnerabilidade, StatusAtivo, StatusTratamento, TipoAtivo, Vulnerabilidade
+from riscos import ErroAnaliseRisco
 from utilidades import (AZUL, RESET, cabecalho, confirmar, escolher_enum, ler_inteiro, ler_texto,
                         mensagem_aviso, mensagem_erro, mensagem_sucesso)
 
@@ -107,7 +109,8 @@ class MenuPrincipal(Menu):
             4: ('Atualizar ativo', self.atualizar_ativo),
             5: ('Remover ativo', self.remover_ativo),
             6: ('Gerenciar vulnerabilidades', self.gerenciar_vulnerabilidades),
-            7: ('Sair', None),
+            7: ('Análise de risco e dependências', self.gerenciar_riscos),
+            8: ('Sair', None),
         }
 
     def ao_sair(self) -> None:
@@ -204,7 +207,7 @@ class MenuPrincipal(Menu):
         ativo = self._selecionar_ativo('Selecione o ativo para remover:')
         if ativo is None:
             return
-        if not confirmar(f'Remover {ativo.nome} e suas vulnerabilidades?'):
+        if not confirmar(f'Remover {ativo.nome}, suas vulnerabilidades e as dependências ligadas a ele?'):
             mensagem_aviso('Remoção cancelada.')
             return
         self.inventario.remover(ativo.id_ativo)
@@ -213,6 +216,9 @@ class MenuPrincipal(Menu):
 
     def gerenciar_vulnerabilidades(self) -> None:
         MenuVulnerabilidades(self.inventario).executar()
+
+    def gerenciar_riscos(self) -> None:
+        MenuRiscos(self.inventario).executar()
 
 
 class MenuVulnerabilidades(Menu):
@@ -364,3 +370,147 @@ class MenuVulnerabilidades(Menu):
         vulnerabilidade.cve_id = cve_id
         if self._salvar():
             mensagem_sucesso('CVSS aplicado; severidade atualizada automaticamente.')
+
+
+class MenuRiscos(Menu):
+    titulo = 'Análise de Risco e Dependências'
+
+    def opcoes(self) -> dict:
+        return {
+            1: ('Cadastrar ou alterar dependência', self.definir_dependencia),
+            2: ('Listar dependências', self.listar_dependencias),
+            3: ('Remover dependência', self.remover_dependencia),
+            4: ('Consultar risco próprio e efetivo de todos os ativos', self.consultar_riscos),
+            5: ('Exibir matrizes e diagnóstico do cálculo', self.exibir_modelo),
+            6: ('Voltar', None),
+        }
+
+    def definir_dependencia(self) -> None:
+        if len(self.inventario) < 2:
+            mensagem_aviso('Cadastre pelo menos dois ativos para definir dependências.')
+            return
+        destino = self._selecionar_ativo('Qual ativo DEPENDE de outro e RECEBERÁ parte do risco?')
+        if destino is None:
+            return
+        origem = self._selecionar_ativo(f'De qual ativo {destino.nome} depende? (ORIGEM do risco)')
+        if origem is None:
+            return
+        if origem.id_ativo == destino.id_ativo:
+            mensagem_erro('Um ativo não pode depender de si mesmo (Aii deve ser zero).')
+            return
+        print(f'{destino.nome} receberá uma fração do risco efetivo de {origem.nome}.')
+        print('Exemplo: 0,25 significa 25%. A soma dos pesos de cada ativo deve ser menor que 1.')
+        while True:
+            texto = ler_texto('Peso de 0 até menos de 1 (Enter cancela): ', obrigatorio=False)
+            if not texto:
+                return
+            try:
+                peso = float(texto.replace(',', '.'))
+                if not math.isfinite(peso) or not 0 <= peso < 1:
+                    raise ValueError()
+                break
+            except ValueError:
+                mensagem_erro('Digite um número finito entre 0 (inclusive) e 1 (exclusive).')
+        try:
+            self.inventario.definir_dependencia(destino.id_ativo, origem.id_ativo, peso)
+        except ValueError as erro:
+            mensagem_erro(str(erro))
+            return
+        if self._salvar():
+            mensagem_sucesso(f'{destino.nome} depende de {origem.nome}: peso {peso:.6g}.')
+
+    def listar_dependencias(self) -> None:
+        encontrou = False
+        for destino in self.inventario.listar():
+            for dependencia in destino.dependencias:
+                origem = self.inventario.obter(dependencia.id_origem)
+                print(f'{destino.id_formatado} — {destino.nome} depende de '
+                      f'{origem.id_formatado} — {origem.nome}: '
+                      f'recebe {dependencia.peso:.2%} do risco efetivo da origem.')
+                encontrou = True
+        if not encontrou:
+            mensagem_aviso('Nenhuma dependência cadastrada. Nesse caso, o risco efetivo é igual ao próprio.')
+
+    def remover_dependencia(self) -> None:
+        destino = self._selecionar_ativo('Selecione o ativo que recebe o risco:')
+        if destino is None:
+            return
+        dependencias = destino.dependencias
+        if not dependencias:
+            mensagem_aviso('Este ativo não possui dependências.')
+            return
+        for indice, dependencia in enumerate(dependencias, 1):
+            origem = self.inventario.obter(dependencia.id_origem)
+            print(f'{indice} - {origem.nome} ({origem.id_formatado}), peso {dependencia.peso:.6g}')
+        opcao = ler_inteiro('Número da dependência (0 cancela): ', minimo=0, maximo=len(dependencias))
+        if opcao == 0:
+            return
+        dependencia = dependencias[opcao - 1]
+        if not confirmar('Remover essa dependência?'):
+            return
+        self.inventario.remover_dependencia(destino.id_ativo, dependencia.id_origem)
+        if self._salvar():
+            mensagem_sucesso('Dependência removida. O risco será recalculado na próxima consulta.')
+
+    def _obter_resultado(self):
+        try:
+            return self.inventario.calcular_riscos()
+        except ErroAnaliseRisco as erro:
+            mensagem_erro(str(erro))
+            return None
+
+    def consultar_riscos(self) -> None:
+        resultado = self._obter_resultado()
+        if resultado is not None:
+            self._mostrar_resultado(resultado)
+
+    def _mostrar_resultado(self, resultado) -> None:
+        print('\nRisco próprio b = M·v | Risco efetivo: (I - A)·x = b')
+        print('Modelo do enunciado: todos os registros entram, inclusive os marcados como corrigidos.')
+        print('São índices acumulados de risco; podem ultrapassar 10 e não são probabilidades.\n')
+        print(f'{"ID":<8} {"Ativo":<26} {"Próprio":>12} {"Herdado":>12} {"Efetivo":>14}')
+        for i, ativo in enumerate(resultado.modelo.equipamentos):
+            proprio = resultado.modelo.b[i]
+            if resultado.x is None:
+                herdado, efetivo = '—', 'indisponível'
+            else:
+                herdado = f'{resultado.x[i] - proprio:.4f}'
+                efetivo = f'{resultado.x[i]:.4f}'
+            print(f'{ativo.id_formatado:<8} {ativo.nome[:26]:<26} '
+                  f'{proprio:>12.4f} {herdado:>12} {efetivo:>14}')
+        print(f'\nPosto de I - A: {resultado.posto}/{len(resultado.modelo.equipamentos)}')
+        print(f'Número de condição: {resultado.condicao:.6g}')
+        print(f'Determinante (apenas diagnóstico): {resultado.determinante:.6g}')
+        if resultado.residuo_relativo is not None:
+            print(f'Resíduo relativo da solução: {resultado.residuo_relativo:.3e}')
+        for aviso in resultado.avisos:
+            mensagem_aviso(aviso)
+        if resultado.impedimento:
+            mensagem_erro(resultado.impedimento)
+        else:
+            print('Invertibilidade verificada e sistema resolvido diretamente.')
+
+    def exibir_modelo(self) -> None:
+        resultado = self._obter_resultado()
+        if resultado is None:
+            return
+        modelo = resultado.modelo
+        print('\nOrdem das linhas de M e das linhas/colunas de A:')
+        for i, ativo in enumerate(modelo.equipamentos, 1):
+            print(f'{i}: {ativo.id_formatado} — {ativo.nome}')
+        print('\nColunas de M e entradas de v (um registro de vulnerabilidade por coluna):')
+        for j, coluna in enumerate(modelo.colunas, 1):
+            print(f'{j}: {coluna.rotulo} | {coluna.descricao} | '
+                  f'{coluna.origem_severidade} | peso {modelo.v[j - 1]:.6g}')
+        print(f'\nM ({modelo.M.shape[0]} x {modelo.M.shape[1]}):')
+        for linha in modelo.M:
+            print('  [' + ', '.join(str(int(valor)) for valor in linha) + ']')
+        print('\nv = [' + ', '.join(f'{valor:.6g}' for valor in modelo.v) + ']')
+        for nome, matriz in [('A (linha recebe risco da coluna)', modelo.A), ('I - A', modelo.sistema)]:
+            print(f'\n{nome}:')
+            for linha in matriz:
+                print('  [' + ', '.join(f'{valor:.6g}' for valor in linha) + ']')
+        print('\nb = [' + ', '.join(f'{valor:.6g}' for valor in modelo.b) + ']')
+        if resultado.x is not None:
+            print('x = [' + ', '.join(f'{valor:.6g}' for valor in resultado.x) + ']')
+        self._mostrar_resultado(resultado)

@@ -1,0 +1,11 @@
+services:
+  inventario:
+    build: .
+    stdin_open: true
+    tty: true
+    init: true
+    restart: unless-stopped
+    volumes:
+      - dados:/dados
+volumes:
+  dados:

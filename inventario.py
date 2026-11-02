@@ -45,7 +45,26 @@ class Inventario:
 
     def remover(self, id_ativo: int) -> Equipamento:
         # As vulnerabilidades vivem dentro do objeto, então saem junto com ele.
-        return self._ativos.pop(id_ativo)
+        removido = self._ativos.pop(id_ativo)
+        for ativo in self._ativos.values():
+            if any(d.id_origem == id_ativo for d in ativo.dependencias):
+                ativo.remover_dependencia(id_ativo)
+        return removido
+
+    def definir_dependencia(self, id_destino: int, id_origem: int, peso: float) -> None:
+        """Destino depende da origem: A[destino, origem] = peso."""
+        if id_destino not in self._ativos or id_origem not in self._ativos:
+            raise ValueError('Os dois ativos da dependência devem estar cadastrados.')
+        self._ativos[id_destino].definir_dependencia(id_origem, peso)
+
+    def remover_dependencia(self, id_destino: int, id_origem: int) -> None:
+        if id_destino not in self._ativos:
+            raise ValueError('Ativo de destino não encontrado.')
+        self._ativos[id_destino].remover_dependencia(id_origem)
+
+    def calcular_riscos(self):
+        from riscos import AnalisadorRisco
+        return AnalisadorRisco().calcular(self.listar())
 
     def listar(self) -> list[Equipamento]:
         return list(self._ativos.values())
