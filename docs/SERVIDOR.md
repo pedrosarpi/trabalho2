@@ -1,6 +1,6 @@
 # Executar no servidor da disciplina e verificar 24 horas
 
-Guia baseado no requisito 3 de `Trabalho_2(1).pdf` e na imagem de acesso SSH
+Guia baseado no requisito 3 de `Trabalho_2.pdf` e na imagem de acesso SSH
 fornecidos. O PDF exige execução em container por **pelo menos 24 horas** em
 servidor estável. A imagem informa **10.0.99.150**, com a matrícula como usuário
 **e senha inicial do SSH**. O código de matrícula mostrado na imagem é só exemplo.

@@ -1,9 +1,0 @@
-{
-  "test_autenticacao.py": true,
-  "test_cve_cvss.py": true,
-  "test_operacao.py": true,
-  "test_revisao.py": true,
-  "test_riscos.py": true,
-  "test_sistema.py": true,
-  "test_web.py": true
-}
