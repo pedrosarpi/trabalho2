@@ -5,6 +5,7 @@ uptime do processo e, opcionalmente, ID/início/reinícios/saúde do container D
 """
 import argparse
 from datetime import datetime, timezone
+from http.client import HTTPException
 import json
 import math
 from pathlib import Path
@@ -16,7 +17,8 @@ from urllib.request import urlopen
 def coletar(url, container=None):
     with urlopen(url, timeout=10) as resposta:
         dados = json.loads(resposta.read(100_000))
-    if dados.get('status') != 'ok' or not isinstance(dados.get('instancia'), str):
+    if (not isinstance(dados, dict) or dados.get('status') != 'ok'
+            or not isinstance(dados.get('instancia'), str) or not dados['instancia']):
         raise ValueError('Resposta de saúde inválida.')
     uptime = dados.get('uptime_seconds')
     if type(uptime) not in (int, float) or not math.isfinite(uptime) or uptime < 0:
@@ -66,7 +68,8 @@ def monitorar(url, duracao, intervalo, saida, container=None, *, relogio=time.mo
                 mudancas += int(alterado)
                 registro.update(ok=True, reinicio_detectado=alterado, **dados)
                 anterior = dados
-            except (OSError, ValueError, KeyError, IndexError, subprocess.SubprocessError) as erro:
+            except (OSError, HTTPException, ValueError, KeyError, IndexError, TypeError,
+                    subprocess.SubprocessError) as erro:
                 falhas += 1
                 registro.update(ok=False, erro=str(erro))
             amostras += 1
@@ -86,7 +89,7 @@ def monitorar(url, duracao, intervalo, saida, container=None, *, relogio=time.mo
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--url', default='http://127.0.0.1:18080/healthz')
+    p.add_argument('--url', default='http://127.0.0.1:2201/healthz')
     p.add_argument('--horas', type=float, default=24)
     p.add_argument('--intervalo', type=float, default=60)
     p.add_argument('--saida', default='evidencias/monitoramento-24h.jsonl')

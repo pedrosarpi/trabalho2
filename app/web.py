@@ -339,15 +339,18 @@ def criar_app(config=None):
                 a = ativo_de(inv_editavel, identificador)
                 anterior = vulnerabilidade_de(a, indice) if indice is not None else None
                 vetor = request.form.get('vetor', '').strip()
-                # Preserva a fonte e a data se o vetor continuar idêntico.
-                cvss = anterior.cvss if anterior and anterior.cvss and anterior.cvss.vetor == vetor else (
+                cve_id = validar_cve(request.form.get('cve_id', ''))
+                # A fonte consultada só vale para o mesmo CVE e o mesmo vetor.
+                mesma_origem = (anterior and anterior.cve_id == cve_id and anterior.cvss
+                                and anterior.cvss.vetor == vetor)
+                cvss = anterior.cvss if mesma_origem else (
                     calcular_cvss(vetor) if vetor else None)
                 v = Vulnerabilidade(obrigatorio('descricao', 10000), obrigatorio('categoria', 160),
                                     enumerado(SeveridadeVulnerabilidade, 'severidade'),
                                     enumerado(StatusTratamento, 'status'),
-                                    cve_id=validar_cve(request.form.get('cve_id', '')), cvss=cvss,
+                                    cve_id=cve_id, cvss=cvss,
                                     consultado_em=(anterior.consultado_em if anterior and
-                                                   anterior.cve_id == validar_cve(request.form.get('cve_id', '')) else None))
+                                                   anterior.cve_id == cve_id else None))
                 if anterior:
                     v.adicionado_por = anterior.adicionado_por
                     v.adicionado_por_id = anterior.adicionado_por_id

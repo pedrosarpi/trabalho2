@@ -1,14 +1,16 @@
 # OrthoCRUD — guia simples de acesso ao servidor
 
-Este guia usa a configuração informada nesta instalação. Execute os comandos
-um por vez; se houver erro, resolva antes de continuar.
+Guia público de implantação e acesso. Substitua `SEU_USUARIO` e `IP_DO_SERVIDOR`
+pelos dados fornecidos pelo administrador. A pasta `~/trabalho2`, o nome de projeto
+e as portas são exemplos; adapte-os ao seu ambiente. Execute os comandos um por
+vez e resolva qualquer erro antes de continuar.
 
 ## 1. Entenda os endereços
 
 | Item | Valor | Para que serve |
 | --- | --- | --- |
-| Servidor da faculdade | `10.0.99.150` | Computador onde o programa está rodando |
-| Usuário SSH | `12621CBS201` | Sua conta de acesso ao servidor |
+| Servidor | `IP_DO_SERVIDOR` | Computador onde o programa está rodando |
+| Usuário SSH | `SEU_USUARIO` | Conta fornecida pelo administrador |
 | Pasta no servidor | `~/trabalho2` | Local do código e do Compose |
 | Projeto Docker Compose | `orthocrud` | Identifica os containers e o volume desta instalação |
 | Porta no servidor | **2201** | Acesso ao programa a partir do próprio servidor |
@@ -16,7 +18,7 @@ um por vez; se houver erro, resolva antes de continuar.
 | Porta dentro do container | **8000** | Porta usada pela aplicação dentro do Docker |
 
 **18080 foi escolhida como exemplo para o seu computador; não é uma exigência
-da faculdade.** Ela pode ser diferente da porta 2201 do servidor.
+da instituição.** Ela pode ser diferente da porta 2201 do servidor.
 
 O caminho do acesso é: navegador na porta **18080** do seu computador →
 túnel SSH → porta **2201** no servidor → aplicação na porta **8000** do container.
@@ -31,7 +33,7 @@ Se o container já está funcionando, basta seguir estes passos.
 **No seu computador**, abra um terminal e execute:
 
 ```bash
-ssh -N -o ExitOnForwardFailure=yes -L 18080:127.0.0.1:2201 12621CBS201@10.0.99.150
+ssh -N -o ExitOnForwardFailure=yes -L 18080:127.0.0.1:2201 SEU_USUARIO@IP_DO_SERVIDOR
 ```
 
 Informe sua senha do servidor. É normal não aparecerem caracteres ao digitar.
@@ -46,7 +48,7 @@ Mantenha o terminal do túnel aberto enquanto usar o site. Para fechar o acesso,
 pressione **Ctrl+C** nesse terminal. Isso não para o programa no servidor.
 
 Não é necessário executar Docker novamente a cada acesso. Você precisa estar
-na rede da faculdade ou em uma VPN que permita alcançar o servidor.
+na rede da instituição ou em uma VPN que permita alcançar o servidor.
 Estar no Wi-Fi não garante, sozinho, que a rede permita a conexão SSH.
 
 ### Se 18080 estiver ocupada no seu computador
@@ -55,11 +57,45 @@ Se o túnel já estiver aberto em outro terminal, use esse acesso.
 Caso precise de outra porta local, use, por exemplo, 18081:
 
 ```bash
-ssh -N -o ExitOnForwardFailure=yes -L 18081:127.0.0.1:2201 12621CBS201@10.0.99.150
+ssh -N -o ExitOnForwardFailure=yes -L 18081:127.0.0.1:2201 SEU_USUARIO@IP_DO_SERVIDOR
 ```
 
 Nesse caso, abra **http://127.0.0.1:18081**. A porta do servidor continua sendo
 **2201**; não altere o `.env` por causa de uma porta local ocupada.
+
+### Atalho opcional: `ssh orthocrud`
+
+No **seu computador Linux/macOS**, abra `~/.ssh/config` no editor e acrescente
+este bloco. Preserve outras conexões; se já existir `Host orthocrud`, edite esse
+bloco em vez de duplicá-lo. Substitua usuário e endereço antes de salvar.
+
+```sshconfig
+Host orthocrud
+    HostName IP_DO_SERVIDOR
+    User SEU_USUARIO
+    LocalForward 18080 127.0.0.1:2201
+    ExitOnForwardFailure yes
+    SessionType none
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+```
+
+Se a pasta ainda não existir, crie-a com `mkdir -p ~/.ssh`. Depois de salvar,
+ajuste as permissões e conecte:
+
+```bash
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/config
+ssh orthocrud
+```
+
+No Windows com OpenSSH, o arquivo fica em `%USERPROFILE%\.ssh\config`;
+edite-o no seu editor, sem executar os comandos `chmod`.
+
+Abra **http://127.0.0.1:18080**. O terminal sem um novo prompt é normal: o túnel
+está ativo. Se outro túnel já ocupar 18080, encerre-o antes com `Ctrl+C`.
+Para conferir o atalho sem conectar, use `ssh -G orthocrud`.
+Este arquivo de configuração é pessoal e não faz parte do repositório.
 
 ### Posso usar pelo celular?
 
@@ -67,7 +103,7 @@ A interface é adaptada a telas pequenas. Porém, a configuração atual publica
 o serviço somente em `127.0.0.1` do servidor: o acesso remoto exige túnel SSH,
 inclusive no celular.
 
-Abrir diretamente `http://10.0.99.150:2201` exige mudar a publicação da porta
+Abrir diretamente `http://IP_DO_SERVIDOR:2201` exige mudar a publicação da porta
 e verificar as permissões de rede e firewall com o professor. Não faça essa
 mudança durante uma coleta de 24 horas: aplicá-la pode recriar o container.
 
@@ -77,11 +113,11 @@ Use isto para consultar o estado, iniciar ou administrar o programa.
 **Execute no seu computador:**
 
 ```bash
-ssh 12621CBS201@10.0.99.150
+ssh SEU_USUARIO@IP_DO_SERVIDOR
 ```
 
 Após entrar, o prompt deve mostrar seu usuário e o nome do servidor, como
-`12621CBS201@ciberseguraca`. Então execute:
+`SEU_USUARIO@SERVIDOR`. Então execute:
 
 ```bash
 cd ~/trabalho2
@@ -111,7 +147,7 @@ exit
 grep -E '^(COMPOSE_PROJECT_NAME|PORTA_WEB)=' .env
 ```
 
-Na instalação atual, os valores são:
+Para este exemplo, use:
 
 ```text
 COMPOSE_PROJECT_NAME=orthocrud
@@ -145,8 +181,8 @@ O primeiro comando não imprime nada quando a configuração é válida.
 O `-d` mantém o programa em segundo plano no servidor.
 O `--wait-timeout 220` é um tempo de espera em segundos, não uma porta.
 
-Usamos `sudo` porque o usuário desta instalação recebeu erro de permissão ao
-acessar o Docker sem ele. Se solicitado, informe a senha do seu usuário no
+Os exemplos usam `sudo` para instalações em que seu usuário não tem acesso
+direto ao Docker. Se seu acesso já funciona sem `sudo`, ele pode ser omitido. Se solicitado, informe a senha do seu usuário no
 servidor. Se o `sudo` negar autorização, solicite ajuda ao professor.
 
 A primeira construção precisa de internet para baixar a imagem e as dependências.
@@ -156,7 +192,7 @@ no site.
 
 ## 5. Deixar funcionando por 24 horas
 
-O programa executa no servidor da faculdade. Depois de iniciado com `up -d`,
+O programa executa no servidor da instituição. Depois de iniciado com `up -d`,
 você pode fechar o SSH, fechar o túnel e desligar seu computador.
 O servidor precisa permanecer ligado, com o container em execução.
 
@@ -185,6 +221,8 @@ sudo docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' "$
 sudo -n nohup python3 -u scripts/monitorar_24h.py --url http://127.0.0.1:2201/healthz --horas 24 --intervalo 60 --container "$CID" --saida "$PASTA/monitoramento-24h.jsonl" > "$PASTA/monitoramento.log" 2>&1 < /dev/null &
 ```
 
+Antes de executar o bloco, confirme `healthy` em `sudo docker compose ps`.
+Se algum comando falhar ou `CID` estiver vazio, não inicie o monitor.
 O monitor consulta a aplicação a cada 60 segundos e verifica o container.
 Ele também usa `sudo`, pois precisa acessar o Docker.
 O `nohup` permite continuar após fechar a sessão SSH; não reinicia o monitor
@@ -208,7 +246,7 @@ Após pelo menos 24 horas, entre novamente no servidor, vá para `~/trabalho2`
 e defina o caminho que anotou, substituindo o exemplo:
 
 ```bash
-PASTA="evidencias/20261103T232141Z"
+PASTA="evidencias/DATA_DA_SUA_COLETA"
 sudo cat "$PASTA/monitoramento-24h.resumo.json"
 ```
 
@@ -248,7 +286,7 @@ sudo chown -R "$(id -u):$(id -g)" "$PASTA"
 **No seu computador**, baixe as evidências:
 
 ```bash
-scp -r 12621CBS201@10.0.99.150:~/trabalho2/evidencias ./evidencias-servidor
+scp -r SEU_USUARIO@IP_DO_SERVIDOR:~/trabalho2/evidencias ./evidencias-servidor
 ```
 
 ## 6. Dados, backup e encerramento
@@ -288,7 +326,7 @@ isso pode selecionar outro volume.
 | --- | --- |
 | `File exists: '.env'` | A configuração já existe; preserve-a e siga para a validação |
 | `permission denied ... docker.sock` | Use `sudo docker compose ...`; se não autorizado, fale com o professor |
-| SSH não conecta | Rede da faculdade/VPN, endereço, usuário e mensagem de erro |
+| SSH não conecta | Rede da instituição/VPN, endereço, usuário e mensagem de erro |
 | `Address already in use` ao abrir túnel | A porta local está ocupada; use o túnel existente ou outra porta local |
 | Navegador não abre o site | Túnel aberto, endereço local correto e container saudável |
 | `curl` falha no servidor | Confira `sudo docker compose ps` e os logs |

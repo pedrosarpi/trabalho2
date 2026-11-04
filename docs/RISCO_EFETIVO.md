@@ -230,11 +230,12 @@ entre singularidade matemática e baixa confiabilidade numérica.
 
 ## Testes e container
 
-`python -m pytest -q` executa a suíte completa, incluindo os novos testes em
+`python -m pytest -q` executa a suíte completa, incluindo os testes em
 `tests/test_riscos.py`. Eles verificam o exemplo manual, ciclos, ausência de falhas,
 CVSS versus escala local, bloqueios numéricos, JSON antigo, referências inválidas,
 remoção, troca de tipo e navegação real dos menus com entradas simuladas.
 
 `numpy==2.3.5` está em `requirements.txt`, utilizado também pelo Dockerfile.
 O README explica a execução em container e a verificação das 24 horas no servidor.
-Esse período não foi testado nesta entrega.
+A comprovação desse período depende dos registros coletados em cada implantação;
+os testes automatizados não substituem a execução real no servidor.

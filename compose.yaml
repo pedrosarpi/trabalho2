@@ -11,7 +11,7 @@ services:
       COOKIE_SEGURO: ${COOKIE_SEGURO:-false}
       NVD_API_KEY: ${NVD_API_KEY:-}
     ports:
-      - "127.0.0.1:${PORTA_WEB:-18080}:8000"
+      - "127.0.0.1:${PORTA_WEB:-2201}:8000"
     volumes:
       - dados:/dados
     read_only: true

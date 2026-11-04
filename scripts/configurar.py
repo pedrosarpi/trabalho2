@@ -20,8 +20,8 @@ def configurar(caminho, projeto, porta):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--projeto', required=True, help='Nome único no servidor, ex.: inventario-sua-matricula')
-    parser.add_argument('--porta', type=int, default=18080)
+    parser.add_argument('--projeto', required=True, help='Nome único no servidor, ex.: orthocrud-seu-identificador')
+    parser.add_argument('--porta', type=int, default=2201)
     args = parser.parse_args()
     try:
         configurar(Path('.env'), args.projeto, args.porta)

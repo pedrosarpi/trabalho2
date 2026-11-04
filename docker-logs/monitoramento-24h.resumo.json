@@ -1,0 +1,10 @@
+{
+  "duracao_segundos": 86400.00019406492,
+  "amostras": 1440,
+  "falhas": 0,
+  "reinicios_detectados": 0,
+  "container_verificado": true,
+  "periodo_sem_falhas_amostradas": true,
+  "evidencia_24h": true,
+  "observacao": "Evidência por amostragem; confira também os logs e os registros do servidor."
+}

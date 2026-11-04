@@ -1,0 +1,2 @@
+NAME                     IMAGE                  COMMAND                  SERVICE      CREATED          STATUS                    PORTS
+orthocrud-inventario-1   orthocrud-inventario   "gunicorn --bind=0.0…"   inventario   33 minutes ago   Up 33 minutes (healthy)   127.0.0.1:2201->8000/tcp

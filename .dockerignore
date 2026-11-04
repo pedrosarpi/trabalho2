@@ -1,0 +1,19 @@
+# Somente arquivos necessários para construir/executar a aplicação.
+**
+!Dockerfile
+!requirements.txt
+!app/
+!app/**
+!scripts/
+!scripts/**
+!exemplos/
+!exemplos/**
+**/__pycache__/
+**/*.py[cod]
+**/.env
+**/.env.*
+**/usuarios.json
+**/vulnerabilidades.json
+**/*.lock
+**/*.bak
+**/*.log

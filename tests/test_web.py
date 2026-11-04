@@ -256,7 +256,8 @@ def test_dependencias_invalidas(client, app, destino, origem, peso):
 
 
 def test_singular_na_web_nao_exibe_solucao(client, app):
-    Path(app.config['INVENTARIO_ARQUIVO']).write_text(Path('exemplos/risco_singular.json').read_text())
+    exemplo = Path(__file__).resolve().parents[1] / 'exemplos/risco_singular.json'
+    Path(app.config['INVENTARIO_ARQUIVO']).write_text(exemplo.read_text(encoding='utf-8'), encoding='utf-8')
     r = client.get('/riscos')
     assert r.status_code == 200 and 'não é invertível' in r.text and 'Indisponível' in r.text
 
@@ -320,3 +321,22 @@ def test_trocar_cve_nao_reutiliza_data_de_consulta_antiga(client, app):
                  status='ABERTA', vetor=V3, cve_id='CVE-2020-1234')
     assert post(client, '/ativos/1/vulnerabilidades/0/editar', dados).status_code == 302
     assert app.extensions['inventario'].ler()[0].obter(1).vulnerabilidades[0].consultado_em is None
+
+
+@pytest.mark.parametrize('novo_cve', ['CVE-2024-12345', ''])
+def test_editar_cve_nao_reutiliza_fonte_nvd_de_outro_registro(client, app, novo_cve):
+    from app.seguranca import calcular_cvss
+    ativo(client, app)
+    vuln(client, app, vetor=V3, cve_id=CVE)
+    servico = app.extensions['inventario']
+    with servico.editar(rev(app)) as inv:
+        v = inv.obter(1).vulnerabilidades[0]
+        v.cvss = calcular_cvss(V3, 'nvd@nist.gov')
+        v.consultado_em = '2026-01-01T00:00:00+00:00'
+    dados = dict(revisao=rev(app), descricao='Editada', categoria='Software',
+                 severidade='CRITICA', status='ABERTA', vetor=V3, cve_id=novo_cve)
+    assert post(client, '/ativos/1/vulnerabilidades/0/editar', dados).status_code == 302
+    v = servico.ler()[0].obter(1).vulnerabilidades[0]
+    assert v.cvss.fonte == 'Cálculo local'
+    assert v.consultado_em is None
+    assert v.cvss.nota == 9.8

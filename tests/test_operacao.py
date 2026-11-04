@@ -72,3 +72,27 @@ def test_monitor_reinicio_nao_aprova(tmp_path):
 
 def test_monitor_menos_de_24h_nao_aprova(tmp_path):
     assert not simular_monitor(tmp_path, duracao=30)['evidencia_24h']
+
+
+@pytest.mark.parametrize('corpo', [[], None, {'status': 'ok', 'instancia': 'id', 'uptime_seconds': True}])
+def test_monitor_resposta_invalida_vira_falha_registrada(tmp_path, corpo):
+    from scripts.monitorar_24h import coletar
+    with patch('scripts.monitorar_24h.urlopen') as abrir:
+        abrir.return_value.__enter__.return_value.read.return_value = json.dumps(corpo).encode()
+        with pytest.raises(ValueError):
+            coletar('http://teste/healthz')
+
+
+def test_monitor_resposta_http_interrompida_nao_aborta_coleta(tmp_path):
+    from http.client import IncompleteRead
+    tempo = [0]
+    def esperar(segundos):
+        tempo[0] += segundos
+    def coletor(url, container):
+        if tempo[0] == 0:
+            raise IncompleteRead(b'{')
+        return {'instancia': 'id', 'uptime_seconds': 10}
+    r = monitorar('http://teste', 1, 1, tmp_path / 'interrompido.jsonl',
+                  relogio=lambda: tempo[0], esperar=esperar, coletor=coletor)
+    assert r['falhas'] == 1 and r['amostras'] == 2
+    assert not r['evidencia_24h']

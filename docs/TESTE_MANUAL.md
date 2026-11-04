@@ -57,8 +57,8 @@ Confira em **Análise de risco**:
 Posto esperado: 3/3. Determinante: 1. A matriz M é a identidade nesse cenário.
 Explique a primeira equação: 8 + 0,25 × 6 + 0,10 × 2 = 9,70.
 
-Tente autodependência, peso 1, peso negativo e atualizar Web→Banco para 0,95
-mantendo Web→Roteador 0,10: devem ser recusados sem alterar os dados anteriores.
+Tente autodependência, peso 1, peso negativo e alterar o peso recebido pelo Web a partir do Banco para 0,95
+mantendo o peso recebido do Roteador em 0,10: devem ser recusados sem alterar os dados anteriores.
 
 ## 4. Calcular e aplicar CVSS
 

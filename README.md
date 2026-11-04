@@ -9,6 +9,10 @@ Desenvolvido como projeto acadêmico, permite explorar o ciclo completo:
 **cadastrar usuários e ativos → registrar vulnerabilidades → avaliar severidade →
 definir dependências → visualizar o risco**.
 
+O nome combina a inspiração em ortogonalidade com as operações CRUD (criar,
+consultar, atualizar e excluir). Isso não implica que as matrizes de dependências
+do modelo de risco sejam ortogonais.
+
 ## Funcionalidades
 
 | Área | Recursos |
@@ -147,13 +151,13 @@ configuração, basta ter Python instalado; ele não exige as dependências do p
 Na pasta do projeto, gere a configuração uma única vez:
 
 ```bash
-python3 scripts/configurar.py --projeto orthocrud-local --porta 18080
+python3 scripts/configurar.py --projeto orthocrud-local --porta 2201
 ```
 
 No PowerShell, use:
 
 ```powershell
-py -3 scripts/configurar.py --projeto orthocrud-local --porta 18080
+py -3 scripts/configurar.py --projeto orthocrud-local --porta 2201
 ```
 
 O script cria `.env` com chave aleatória e não sobrescreve um arquivo existente.
@@ -168,8 +172,8 @@ docker compose up -d --build --wait --wait-timeout 180
 docker compose ps
 ```
 
-Abra **http://127.0.0.1:18080**.
-O endpoint **http://127.0.0.1:18080/healthz** permite verificar a saúde do serviço.
+Abra **http://127.0.0.1:2201**.
+O endpoint **http://127.0.0.1:2201/healthz** permite verificar a saúde do serviço.
 
 | Ação | Comando |
 | --- | --- |
@@ -196,6 +200,31 @@ Consulte o [guia de servidor e monitoramento](docs/SERVIDOR.md) para implantaç�
 migração, backup e coleta de evidências. A execução contínua de 24 horas exigida
 no contexto acadêmico precisa ser demonstrada no servidor; o CI não substitui
 essa verificação.
+
+### Acessar uma instalação em servidor por SSH
+
+As portas têm funções diferentes:
+
+| Local | Porta do exemplo |
+| --- | --- |
+| Aplicação dentro do container | 8000 |
+| Serviço publicado no servidor | 2201, configurável por `PORTA_WEB` |
+| Túnel no seu computador | 18080, escolhida apenas para o acesso local |
+
+No terminal do **seu computador**, substitua os marcadores pelos dados de acesso:
+
+```bash
+ssh -N -o ExitOnForwardFailure=yes -L 18080:127.0.0.1:2201 SEU_USUARIO@IP_DO_SERVIDOR
+```
+
+Mantenha o terminal aberto e acesse **http://127.0.0.1:18080**. `Ctrl+C` fecha
+apenas o túnel. O container iniciado com `up -d` continua no servidor.
+Você precisa ter acesso à rede do servidor; o IP privado não fica acessível
+pela internet automaticamente. O [guia de servidor](docs/SERVIDOR.md) explica
+como configurar o atalho `ssh orthocrud`, verificar a saúde e monitorar 24 horas.
+
+O exemplo Docker local acima abre **2201 diretamente**. A porta **18080** só é
+usada pelo túnel deste exemplo. As portas podem ser diferentes conforme o ambiente.
 
 ## Consulta de CVEs
 
@@ -250,7 +279,9 @@ Resultado esperado: **9,8 — CRÍTICA**. O vetor não identifica, por si só, u
 
 Escolha as métricas com base na análise técnica da falha. É possível consultar
 o resultado ou aplicá-lo a uma vulnerabilidade cadastrada, atualizando sua
-severidade. A avaliação local registra a fonte **Cálculo local**. Informar um
+severidade. A avaliação local registra a fonte **Cálculo local**. Ao trocar ou remover o CVE
+de uma vulnerabilidade, um vetor mantido passa a ser tratado como cálculo local,
+sem reutilizar a fonte da consulta anterior. Informar um
 CVE nesse fluxo valida sua sintaxe, sem confirmar sua existência online.
 
 | Nota Base | Classificação |
@@ -328,7 +359,7 @@ CSRF, escape de HTML, cookies HttpOnly/SameSite e limite de tentativas de login.
 | `PERMITIR_CADASTRO` | `true` por padrão; `false` fecha novos cadastros |
 | `COOKIE_SEGURO` | `false` para HTTP local; use `true` quando o acesso ocorrer por HTTPS |
 | `COMPOSE_PROJECT_NAME` | Nome do projeto Compose e prefixo de seus recursos |
-| `PORTA_WEB` | Porta publicada pelo Compose; padrão 18080, sem efeito no servidor local |
+| `PORTA_WEB` | Porta publicada pelo Compose; padrão 2201, sem efeito no servidor local |
 
 No Windows, defina variáveis com `$env:NOME = "valor"`; em Linux/macOS, com
 `export NOME="valor"`. Para o Compose, edite o `.env` e execute novamente
@@ -428,7 +459,8 @@ Os módulos `equipamentos.py` e `modelos.py` representam o domínio;
 - [Roteiro de testes manuais da interface](docs/TESTE_MANUAL.md).
 - [Modelo de risco e exemplos resolvidos](docs/RISCO_EFETIVO.md).
 - [Implantação, backup e monitoramento no servidor](docs/SERVIDOR.md).
-- [Auditoria e evidências da revisão](docs/AUDITORIA.md).
+- [Revisão técnica desta versão e limitações](docs/AUDITORIA.md).
+- [Histórico de alterações](CHANGELOG.md).
 
 ## Referências
 
