@@ -1,317 +1,299 @@
-# Executar no servidor da disciplina e verificar 24 horas
+# OrthoCRUD — guia simples de acesso ao servidor
 
-Guia baseado no requisito 3 de `Trabalho_2.pdf` e na imagem de acesso SSH
-fornecidos. O PDF exige execução em container por **pelo menos 24 horas** em
-servidor estável. A imagem informa **10.0.99.150**, com a matrícula como usuário
-**e senha inicial do SSH**. O código de matrícula mostrado na imagem é só exemplo.
+Este guia usa a configuração informada nesta instalação. Execute os comandos
+um por vez; se houver erro, resolva antes de continuar.
 
-Os comandos abaixo devem ser executados por você, com sua matrícula. Não houve
-acesso ao servidor nesta revisão. A disponibilidade de Docker, Compose, porta,
-internet e espaço em disco precisa ser conferida no ambiente da faculdade.
+## 1. Entenda os endereços
 
-## 1. Testar SSH a partir do Fedora ou PowerShell
+| Item | Valor | Para que serve |
+| --- | --- | --- |
+| Servidor da faculdade | `10.0.99.150` | Computador onde o programa está rodando |
+| Usuário SSH | `12621CBS201` | Sua conta de acesso ao servidor |
+| Pasta no servidor | `~/trabalho2` | Local do código e do Compose |
+| Projeto Docker Compose | `orthocrud` | Identifica os containers e o volume desta instalação |
+| Porta no servidor | **2201** | Acesso ao programa a partir do próprio servidor |
+| Porta no seu computador | **18080** | Entrada do túnel que você abre no navegador |
+| Porta dentro do container | **8000** | Porta usada pela aplicação dentro do Docker |
 
-```bash
-ssh SUA_MATRICULA@10.0.99.150
-```
+**18080 foi escolhida como exemplo para o seu computador; não é uma exigência
+da faculdade.** Ela pode ser diferente da porta 2201 do servidor.
 
-Substitua `SUA_MATRICULA`. Quando a senha for solicitada, digite sua matrícula
-novamente, conforme a orientação recebida. O terminal não mostra os caracteres
-da senha. No primeiro acesso, confira a identificação do servidor com o docente
-antes de aceitar uma chave desconhecida.
+O caminho do acesso é: navegador na porta **18080** do seu computador →
+túnel SSH → porta **2201** no servidor → aplicação na porta **8000** do container.
 
-O IP é privado: use a rede da faculdade ou a VPN indicada por ela. Se ocorrer
-erro, registre a mensagem e informe ao docente, como pede a imagem. Não suponha
-que seja problema do programa.
+O endereço `127.0.0.1` significa “este computador”. No navegador, refere-se à sua
+máquina; nos comandos executados por SSH, refere-se ao servidor.
 
-Depois de entrar, execute no servidor:
+## 2. Para abrir o site no dia a dia
 
-```bash
-whoami
-python3 --version
-docker --version
-docker compose version
-docker info
-```
+Se o container já está funcionando, basta seguir estes passos.
 
-Se faltar permissão ou algum componente, solicite a configuração ao docente.
-Não é necessário instalar as bibliotecas Python no host: elas entram na imagem.
-O Python do host é utilizado pelos scripts de configuração e monitoramento.
-
-## 2. Levar o projeto para sua pasta
-
-Opção A: após subir a nova versão para sua branch, no servidor:
+**No seu computador**, abra um terminal e execute:
 
 ```bash
-git clone --branch interface-web URL_DO_SEU_REPOSITORIO trabalho2-web
-cd trabalho2-web
+ssh -N -o ExitOnForwardFailure=yes -L 18080:127.0.0.1:2201 12621CBS201@10.0.99.150
 ```
 
-Use o nome real da sua branch. Se o repositório for privado, configure o acesso
-Git adequado; não coloque tokens em comandos compartilhados ou no README.
+Informe sua senha do servidor. É normal não aparecerem caracteres ao digitar.
+Depois de conectar, o terminal fica sem um novo prompt: ele está mantendo o
+túnel aberto.
 
-Opção B: transfira o ZIP desta entrega do seu computador:
+**No navegador do seu computador**, abra:
+
+**http://127.0.0.1:18080**
+
+Mantenha o terminal do túnel aberto enquanto usar o site. Para fechar o acesso,
+pressione **Ctrl+C** nesse terminal. Isso não para o programa no servidor.
+
+Não é necessário executar Docker novamente a cada acesso. Você precisa estar
+na rede da faculdade ou em uma VPN que permita alcançar o servidor.
+Estar no Wi-Fi não garante, sozinho, que a rede permita a conexão SSH.
+
+### Se 18080 estiver ocupada no seu computador
+
+Se o túnel já estiver aberto em outro terminal, use esse acesso.
+Caso precise de outra porta local, use, por exemplo, 18081:
 
 ```bash
-scp trabalho2-web-organizado.zip SUA_MATRICULA@10.0.99.150:~/
+ssh -N -o ExitOnForwardFailure=yes -L 18081:127.0.0.1:2201 12621CBS201@10.0.99.150
 ```
 
-Então, no servidor:
+Nesse caso, abra **http://127.0.0.1:18081**. A porta do servidor continua sendo
+**2201**; não altere o `.env` por causa de uma porta local ocupada.
+
+### Posso usar pelo celular?
+
+A interface é adaptada a telas pequenas. Porém, a configuração atual publica
+o serviço somente em `127.0.0.1` do servidor: o acesso remoto exige túnel SSH,
+inclusive no celular.
+
+Abrir diretamente `http://10.0.99.150:2201` exige mudar a publicação da porta
+e verificar as permissões de rede e firewall com o professor. Não faça essa
+mudança durante uma coleta de 24 horas: aplicá-la pode recriar o container.
+
+## 3. Entrar no terminal do servidor
+
+Use isto para consultar o estado, iniciar ou administrar o programa.
+**Execute no seu computador:**
 
 ```bash
-mkdir -p ~/entrega-web
-python3 -m zipfile -e ~/trabalho2-web-organizado.zip ~/entrega-web
-cd ~/entrega-web/trabalho2-web
+ssh 12621CBS201@10.0.99.150
 ```
 
-Execute os comandos seguintes na pasta que contém `compose.yaml`.
-
-## 3. Configurar e iniciar
-
-Confirme com o docente qual porta você pode usar. Este guia usa **18080** como
-exemplo; ela precisa estar disponível. Verifique, se o comando estiver instalado:
+Após entrar, o prompt deve mostrar seu usuário e o nome do servidor, como
+`12621CBS201@ciberseguraca`. Então execute:
 
 ```bash
-ss -ltn
+cd ~/trabalho2
+sudo docker compose ps
 ```
 
-Escolha um nome de projeto **único no servidor**, usando sua matrícula em letras
-minúsculas. Isso evita que alunos com acesso ao mesmo Docker compartilhem por
-engano containers e volumes com o mesmo nome.
+`Up` indica que o container está rodando. `healthy` indica que a verificação
+de saúde está passando. Para testar a aplicação **no servidor**:
 
 ```bash
-python3 scripts/configurar.py --projeto inventario-sua-matricula --porta 18080
-docker compose config --quiet
-docker compose up -d --build --wait --wait-timeout 180
-docker compose ps
-curl --fail http://127.0.0.1:18080/healthz
+curl --fail http://127.0.0.1:2201/healthz
 ```
 
-Resultado esperado: serviço `inventario` em execução e **healthy**. A consulta de
-saúde deve retornar `"status":"ok"`, uptime e identificador da instância. Se não
-houver `curl`, use:
+O resultado esperado contém `"status":"ok"`.
+
+Para sair do servidor e voltar ao terminal da sua máquina:
 
 ```bash
-python3 -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:18080/healthz').read().decode())"
+exit
 ```
 
-O script cria `.env` e não o sobrescreve. Se ele já existir, confira seus valores
-em seu editor privado. Não publique `.env`, não use `docker compose config` sem
-`--quiet` em material de apresentação e não salve `docker inspect` completo:
-essas saídas podem incluir segredos.
+## 4. Iniciar o programa, se ainda não estiver rodando
 
-A primeira construção precisa de acesso à imagem Python e ao índice de pacotes.
-A consulta CVE precisa de acesso à NVD. Sem internet, CRUD, CVSS e risco continuam
-funcionando depois que as dependências estão instaladas.
-
-## 4. Abrir a interface no seu computador
-
-O Compose publica a porta somente em `127.0.0.1` do servidor. Em **outro terminal
-no seu computador**, mantenha este túnel aberto:
+**No servidor, dentro de `~/trabalho2`:**
 
 ```bash
-ssh -N -L 18080:127.0.0.1:18080 SUA_MATRICULA@10.0.99.150
+grep -E '^(COMPOSE_PROJECT_NAME|PORTA_WEB)=' .env
 ```
 
-Abra **http://127.0.0.1:18080** no navegador do seu computador. Crie sua conta da
-aplicação. A senha SSH não é importada para ela.
+Na instalação atual, os valores são:
 
-Se a porta local 18080 estiver ocupada, use outra à esquerda:
+```text
+COMPOSE_PROJECT_NAME=orthocrud
+PORTA_WEB=2201
+```
+
+**Se o `.env` já existe, não execute novamente o script de configuração.**
+A mensagem `File exists: '.env'` significa que o script preservou a configuração
+existente. Não apague esse arquivo: ele contém a chave de sessão da aplicação.
+
+Somente em uma instalação nova, sem `.env`, gere-o com:
 
 ```bash
-ssh -N -L 18081:127.0.0.1:18080 SUA_MATRICULA@10.0.99.150
+python3 scripts/configurar.py --projeto orthocrud --porta 2201
 ```
 
-Nesse caso, abra **http://127.0.0.1:18081**. A porta à direita continua sendo a
-porta configurada no servidor. O túnel não precisa permanecer aberto durante as
-24 horas; o container e o monitor devem permanecer rodando no servidor.
+O nome e a porta devem estar disponíveis e autorizados. Em outra instalação
+compartilhada, use um nome de projeto único. Na instalação existente, mantenha
+`orthocrud` para continuar usando o mesmo volume de dados.
 
-Se o docente exigir acesso direto por IP/navegador de outra máquina, combine
-porta, firewall e HTTPS com ele antes de alterar a publicação. Para HTTPS real,
-configure `COOKIE_SEGURO=true`. No túnel HTTP local, mantenha `false`, pois o
-navegador acessa HTTP e o transporte até o servidor é protegido pelo SSH.
-
-## 5. Testar antes de começar a contagem
-
-Siga `docs/TESTE_MANUAL.md`. Crie uma conta, três ativos, vulnerabilidades e
-relações. Confira os riscos esperados **9,70 / 6,00 / 2,00**.
-
-Teste a persistência **antes** do período de 24 horas:
+Para construir e iniciar:
 
 ```bash
-docker compose restart inventario
-docker compose ps
+sudo docker compose config --quiet
+sudo docker compose up -d --build --wait --wait-timeout 220
+sudo docker compose ps
+curl --fail http://127.0.0.1:2201/healthz
 ```
 
-Aguarde voltar a `healthy`, atualize o navegador, faça login se necessário e
-confirme ativos, vulnerabilidades, dependências e conta. O volume guarda ambos os
-JSON. Recriar o container com `docker compose up -d` também mantém esse volume.
+O primeiro comando não imprime nada quando a configuração é válida.
+O `-d` mantém o programa em segundo plano no servidor.
+O `--wait-timeout 220` é um tempo de espera em segundos, não uma porta.
 
-Pare de editar a configuração e de reiniciar a aplicação quando iniciar a coleta
-que pretende apresentar como evidência de continuidade.
+Usamos `sudo` porque o usuário desta instalação recebeu erro de permissão ao
+acessar o Docker sem ele. Se solicitado, informe a senha do seu usuário no
+servidor. Se o `sudo` negar autorização, solicite ajuda ao professor.
 
-## 6. Registrar as 24 horas no próprio servidor
+A primeira construção precisa de internet para baixar a imagem e as dependências.
+Depois de iniciar, abra o túnel conforme a seção 2.
+As contas da aplicação são separadas da conta SSH: uma base nova exige cadastro
+no site.
 
-Mantenha o `.env` e a pasta do projeto durante todo o período. Inicie apenas
-quando o container estiver saudável:
+## 5. Deixar funcionando por 24 horas
+
+O programa executa no servidor da faculdade. Depois de iniciado com `up -d`,
+você pode fechar o SSH, fechar o túnel e desligar seu computador.
+O servidor precisa permanecer ligado, com o container em execução.
+
+Antes de começar a contagem, teste cadastros e cálculos. Se quiser testar se os
+dados persistem após reinício, faça isso **antes** da coleta:
 
 ```bash
-mkdir -p evidencias
-CID=$(docker compose ps -q inventario)
-date -u > evidencias/inicio.txt
-docker compose ps > evidencias/container-inicio.txt
-docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' "$CID" > evidencias/estado-inicio.txt
-nohup python3 -u scripts/monitorar_24h.py --url http://127.0.0.1:18080/healthz --horas 24 --intervalo 60 --container "$CID" --saida evidencias/monitoramento-24h.jsonl > evidencias/monitoramento.log 2>&1 < /dev/null &
-echo $! > evidencias/monitoramento.pid
+sudo docker compose restart inventario
 ```
 
-Esses comandos usam a porta 18080. Ajuste `--url` se escolheu outra. O monitor usa
-somente a biblioteca padrão do Python e consulta Docker com o mesmo usuário SSH.
-Ele registra uma amostra imediatamente e a última após pelo menos 24 horas.
+Aguarde o estado `healthy` e confirme os dados no site. Depois de iniciar a
+coleta, não pare, reinicie, atualize ou reconstrua o container.
 
-Acompanhe quando quiser:
+### Iniciar a coleta de evidências
+
+**No servidor, em `~/trabalho2`**, execute o bloco abaixo uma única vez por coleta:
 
 ```bash
-tail -n 5 evidencias/monitoramento.log
-docker compose ps
-docker compose logs --tail=50 inventario
+sudo -v
+CID=$(sudo docker compose ps -q inventario)
+PASTA="evidencias/$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$PASTA"
+date -u > "$PASTA/inicio.txt"
+sudo docker compose ps > "$PASTA/container-inicio.txt"
+sudo docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' "$CID" > "$PASTA/estado-inicio.txt"
+sudo -n nohup python3 -u scripts/monitorar_24h.py --url http://127.0.0.1:2201/healthz --horas 24 --intervalo 60 --container "$CID" --saida "$PASTA/monitoramento-24h.jsonl" > "$PASTA/monitoramento.log" 2>&1 < /dev/null &
 ```
 
-Depois de completar o período:
+O monitor consulta a aplicação a cada 60 segundos e verifica o container.
+Ele também usa `sudo`, pois precisa acessar o Docker.
+O `nohup` permite continuar após fechar a sessão SSH; não reinicia o monitor
+se o servidor for reiniciado.
+
+**Confirme que começou antes de desconectar:**
 
 ```bash
-cat evidencias/monitoramento-24h.resumo.json
-date -u > evidencias/fim.txt
-docker compose ps > evidencias/container-fim.txt
-docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' "$CID" > evidencias/estado-fim.txt
-docker compose logs --no-color --since 25h inventario > evidencias/container.log
+echo "$PASTA"
+tail -n 5 "$PASTA/monitoramento.log"
 ```
 
-Se reconectou por SSH e perdeu a variável `CID`, execute novamente
-`CID=$(docker compose ps -q inventario)` antes do `inspect`; os arquivos do início
-e o monitor mantêm a identidade original para comparação.
+Anote o caminho exibido. O log deve mostrar `Amostra 1: OK`; se estiver vazio,
+repita a leitura após alguns segundos. Se houver erro, corrija antes de considerar
+a coleta iniciada. A contagem da evidência começa ao iniciar o monitor, não
+retroativamente quando você iniciou o container.
 
-O resumo precisa mostrar:
+### Consultar o resultado
 
-- `duracao_segundos` >= 86400;
-- `falhas: 0` e `reinicios_detectados: 0`;
+Após pelo menos 24 horas, entre novamente no servidor, vá para `~/trabalho2`
+e defina o caminho que anotou, substituindo o exemplo:
+
+```bash
+PASTA="evidencias/20261103T232141Z"
+sudo cat "$PASTA/monitoramento-24h.resumo.json"
+```
+
+O resumo deve indicar:
+
+- `duracao_segundos` igual ou maior que **86400**;
+- `falhas: 0`;
+- `reinicios_detectados: 0`;
 - `container_verificado: true`;
 - `evidencia_24h: true`.
 
-Esse resultado é **evidência amostral**, acompanhada de uptime e identidade do
-processo/container; não prova ausência de uma indisponibilidade muito curta entre
-amostras. Apresente também os estados inicial/final e logs. O docente determina
-qual evidência aceitar.
+O resumo só é criado quando a coleta termina. Se não existir, confira
+`tail -n 10 "$PASTA/monitoramento.log"`.
 
-Se houver falhas, reinício, resumo ausente ou monitor interrompido, investigue e
-faça uma nova coleta completa, usando outro nome em `--saida`. Não edite o log
-para ocultar falhas. Se o monitor rodar menos de 24 horas ou sem `--container`,
-ele não marca `evidencia_24h` como verdadeira. Os testes automatizados que simulam
-o tempo não são evidência de execução real.
-
-`restart: unless-stopped` ajuda a retomar após saída do processo; um healthcheck
-ruim, sozinho, **não provoca reinício automático** no Docker. Após reinício da
-máquina, o container pode voltar, mas o monitor iniciado com `nohup` não volta
-sozinho e a continuidade deve ser reavaliada.
-
-## 7. Backup e migração dos dados locais
-
-A imagem não inclui suas contas/dados locais. O ZIP preserva os JSON enviados
-para permitir continuidade local, mas eles estão no `.gitignore` e `.dockerignore`.
-Não os suba como dados de demonstração públicos.
-
-Antes de restaurar ou migrar, pare o serviço e faça uma cópia do volume atual:
+Registre também o estado final:
 
 ```bash
-docker compose stop inventario
-mkdir -p backups/antes-da-migracao
-docker compose cp inventario:/dados/. backups/antes-da-migracao/
+CID=$(sudo docker compose ps -q inventario)
+date -u > "$PASTA/fim.txt"
+sudo docker compose ps > "$PASTA/container-fim.txt"
+sudo docker inspect --format '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' "$CID" > "$PASTA/estado-fim.txt"
+sudo docker compose logs --no-color --since 25h inventario > "$PASTA/container.log"
 ```
 
-Use um destino novo para cada backup. A cópia contém hashes de senha: mantenha-a
-privada. Para importar seus `usuarios.json` e `vulnerabilidades.json` locais em
-uma base nova (ou substituir intencionalmente a base após o backup):
+Esses registros são evidência por amostragem; não garantem a ausência de uma
+interrupção muito curta entre consultas. O professor determina quais evidências
+aceitar. Se houver falhas ou reinícios, investigue e inicie uma nova coleta
+completa, preservando os registros anteriores.
+
+Para permitir que sua conta baixe os arquivos gerados pelo monitor, depois de
+concluído, execute no servidor:
 
 ```bash
-docker compose cp dados/usuarios.json inventario:/dados/usuarios.json
-docker compose cp dados/vulnerabilidades.json inventario:/dados/vulnerabilidades.json
-docker compose run --rm --no-deps --user 0 inventario chown -R 10001:10001 /dados
-docker compose up -d --wait --wait-timeout 180
+sudo chown -R "$(id -u):$(id -g)" "$PASTA"
 ```
 
-O ajuste de dono ocorre apenas no volume `/dados`, dentro do container. Ele
-permite que o usuário sem privilégios da aplicação grave arquivos copiados.
-Se qualquer arquivo for inválido, a aplicação informa erro e não o zera; restaure
-a cópia ou corrija o arquivo com o serviço parado. O SHA-256 legado migra para
-scrypt no próximo login válido. Repita o teste de persistência após a migração.
-
-Para baixar evidências ao seu computador:
+**No seu computador**, baixe as evidências:
 
 ```bash
-scp -r SUA_MATRICULA@10.0.99.150:~/entrega-web/trabalho2-web/evidencias ./evidencias-servidor
+scp -r 12621CBS201@10.0.99.150:~/trabalho2/evidencias ./evidencias-servidor
 ```
 
-Adapte o caminho se usou `git clone` em outra pasta.
+## 6. Dados, backup e encerramento
 
-## 8. Comandos úteis e falhas comuns
+O inventário e as contas ficam no volume Docker do servidor. Fechar o navegador,
+o túnel ou o SSH não os apaga. Os dados da instalação local do seu computador
+não são enviados automaticamente ao servidor.
 
-| Situação | Verificação/ação |
+Para fazer backup, **fora do período de coleta**, execute no servidor:
+
+```bash
+sudo docker compose stop inventario
+DESTINO="backups/$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$DESTINO"
+sudo docker compose cp inventario:/dados/. "$DESTINO/"
+sudo docker compose start inventario
+```
+
+Guarde o backup em local privado, pois inclui contas e hashes de senha.
+Não publique `.env`, JSON reais, backups ou evidências com informações privadas.
+
+| Ação | Comando no servidor, em `~/trabalho2` |
 | --- | --- |
-| SSH não conecta | Rede/VPN, IP e mensagem exata; encaminhar ao docente |
-| Permission denied no SSH | Matrícula correta e senha inicial informada na imagem |
-| Docker indisponível/sem permissão | Conferir `docker info` e solicitar ajuste ao docente |
-| Porta em uso | Escolher porta livre/autorizada e atualizar `.env`, túnel e monitor |
-| Container não inicia | `docker compose logs --tail=100 inventario`; conferir SECRET_KEY e construção |
-| 503 / dados inválidos | Conferir JSON, permissões e espaço; preservar backup, não apagar a base |
-| Formulário expirado / conflito | Recarregar a página e refazer a operação com os dados atuais |
-| NVD fora do ar ou limitada | Tentar mais tarde; usar cadastro manual/calculadora offline |
-| Não há resumo das 24h | Monitor ainda executando ou interrompido; conferir seu log/PID |
+| Consultar estado | `sudo docker compose ps` |
+| Ver últimas mensagens | `sudo docker compose logs --tail=50 inventario` |
+| Parar após a avaliação | `sudo docker compose stop` |
+| Retomar um container parado | `sudo docker compose start` |
+| Atualizar a imagem após mudar o código | `sudo docker compose up -d --build --wait --wait-timeout 220` |
 
-Encerrar após a avaliação: `docker compose stop`. Remover containers mantendo os
-dados: `docker compose down`. **`docker compose down -v` apaga o volume**, por isso
-não o use no servidor de apresentação. Ele aparece somente no ambiente descartável
-do CI.
+**Não use `docker compose down -v`: ele remove o volume e seus dados.**
+Não troque o nome do projeto no `.env` para renomear visualmente o aplicativo:
+isso pode selecionar outro volume.
 
-## 9. Subir uma branch sem alterar a main
+## 7. Problemas comuns
 
-No seu clone local, extraia/copie os arquivos de código desta entrega sobre a
-pasta de trabalho da branch. Preserve a pasta `.git` do clone; não faça outro
-`git init`. Antes de copiar, salve suas alterações atuais em um commit ou backup.
+| Mensagem ou situação | O que conferir |
+| --- | --- |
+| `File exists: '.env'` | A configuração já existe; preserve-a e siga para a validação |
+| `permission denied ... docker.sock` | Use `sudo docker compose ...`; se não autorizado, fale com o professor |
+| SSH não conecta | Rede da faculdade/VPN, endereço, usuário e mensagem de erro |
+| `Address already in use` ao abrir túnel | A porta local está ocupada; use o túnel existente ou outra porta local |
+| Navegador não abre o site | Túnel aberto, endereço local correto e container saudável |
+| `curl` falha no servidor | Confira `sudo docker compose ps` e os logs |
+| Container não fica `healthy` | Confira logs; não inicie a coleta de 24 horas até corrigir |
+| Site sem seus dados locais | O volume do servidor é uma base independente da sua máquina |
 
-```bash
-git status
-git switch -c interface-web
-# Copie os arquivos revisados e execute os testes indicados no README.
-git status
-```
-
-Confira se dados pessoais/segredos já eram rastreados. O `.gitignore` não remove
-arquivos que já entraram no Git:
-
-```bash
-git ls-files usuarios.json vulnerabilidades.json .env
-```
-
-Se aparecerem, remova-os **somente do índice**, preservando as cópias locais:
-
-```bash
-git rm --cached --ignore-unmatch usuarios.json vulnerabilidades.json .env
-git add .
-git diff --cached --stat
-git commit -m "Adiciona interface web e revisa persistencia, contas e implantacao"
-git push -u origin interface-web
-```
-
-Inspecione as alterações antes do commit. Se credenciais já foram publicadas,
-tire os arquivos das próximas versões e troque as senhas/chaves expostas. Não é
-necessário fazer merge para testar o CI da branch.
-
-
-### Atualizar um clone que ainda usa a estrutura antiga
-
-A estrutura desta entrega está descrita no README. Ao copiar os arquivos para
-seu clone Git, retire os antigos módulos Python e `test_*.py` da raiz, além das
-pastas `templates/` e `static/` antigas, depois de conferir suas versões novas
-em `app/` e `tests/`. Preserve `.git`, seu `.env` e seus dados atuais.
-Não deixe cópias antigas do código junto das novas. Confira os movimentos/
-exclusões em `git status` e execute os testes antes de criar o commit.
+**Rotina diária:** abrir o túnel no seu computador → acessar
+**http://127.0.0.1:18080** → usar o site → fechar o túnel quando terminar.
